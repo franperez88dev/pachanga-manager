@@ -18,6 +18,7 @@ from .rutas import registrar_blueprints
 
 def create_app(config_extra=None):
     app = Flask(__name__)
+    app.json.sort_keys = False  # respeta el orden de los campos tal como los escribimos
     app.config.update(cargar_config())
     if config_extra:
         app.config.update(config_extra)

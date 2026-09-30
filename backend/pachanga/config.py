@@ -36,7 +36,6 @@ def cargar_config():
         # SQLite relativo: Flask-SQLAlchemy lo guarda en backend/instance/
         "SQLALCHEMY_DATABASE_URI": normalizar_url_bd(os.environ.get("DATABASE_URL", "sqlite:///pachanga.db")),
         "SQLALCHEMY_ENGINE_OPTIONS": {"pool_pre_ping": True},
-        "JSON_SORT_KEYS": False,
         "CORS_ORIGENES": origenes,
         # Detrás del proxy del hosting, la IP real del cliente llega en X-Forwarded-For
         "CONFIAR_EN_PROXY": _booleano("CONFIAR_EN_PROXY"),
