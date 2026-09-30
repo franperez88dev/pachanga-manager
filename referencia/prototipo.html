@@ -1,0 +1,500 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pachanga Manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap');
+
+  :root{
+    --bg:#f1f4ee;
+    --surface:#ffffff;
+    --surface-2:#e9eee3;
+    --border:#d7dfcd;
+    --text:#16211a;
+    --muted:#5c6b5f;
+    --pitch:#0f7a4d;
+    --pitch-strong:#0b5c3a;
+    --gold:#d99a12;
+    --blanco:#c9ccce;
+    --blanco-ink:#2a2f33;
+    --negro:#20262b;
+    --negro-ink:#f2f4f6;
+    --danger:#c0392b;
+    --danger-soft:#f7e4e1;
+    --chalk:#ffffff;
+    --shadow:0 1px 2px rgba(20,40,25,.06),0 6px 20px rgba(20,40,25,.06);
+    --radius:14px;
+  }
+  :root:not([data-theme="light"]){
+    @media (prefers-color-scheme: dark){
+      --bg:#0d1411; --surface:#161f1a; --surface-2:#1f2a23; --border:#2b382f;
+      --text:#e9efe8; --muted:#93a596; --pitch:#3ac384; --pitch-strong:#2ea973; --gold:#f0b73a;
+      --blanco:#dfe3e6; --blanco-ink:#20262b; --negro:#10151a; --negro-ink:#eef2f5;
+      --danger:#e0705f; --danger-soft:#2c1a18; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1411; --surface:#161f1a; --surface-2:#1f2a23; --border:#2b382f;
+    --text:#e9efe8; --muted:#93a596; --pitch:#3ac384; --pitch-strong:#2ea973; --gold:#f0b73a;
+    --blanco:#dfe3e6; --blanco-ink:#20262b; --negro:#10151a; --negro-ink:#eef2f5;
+    --danger:#e0705f; --danger-soft:#2c1a18; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',system-ui,sans-serif;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .app{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 40px;min-height:100%}
+
+  .topbar{display:flex;align-items:center;gap:12px;padding-block:18px 14px;position:sticky;top:env(safe-area-inset-top,0px);background:linear-gradient(var(--bg) 78%,transparent);z-index:20}
+  .badge{width:38px;height:38px;flex:0 0 auto;border-radius:11px;background:var(--pitch);display:grid;place-items:center;box-shadow:var(--shadow)}
+  .badge svg{width:24px;height:24px}
+  .brand h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:23px;letter-spacing:.5px;text-transform:uppercase;margin:0;line-height:1}
+  .brand p{margin:1px 0 0;font-size:11.5px;color:var(--muted);letter-spacing:.3px}
+  .demo-pill{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:100px;padding:4px 9px;white-space:nowrap}
+
+  .whoami{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px 8px 8px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .dorsal{width:34px;height:34px;flex:0 0 auto;border-radius:9px;background:var(--pitch);color:var(--chalk);display:grid;place-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+  :root[data-theme="dark"] .dorsal{color:#08130d}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dorsal{color:#08130d}}
+  .whoami .n{flex:1;min-width:0;font-weight:600;font-size:14.5px}
+  .whoami .n small{display:block;font-weight:500;font-size:11.5px;color:var(--muted)}
+  .admin-star{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:100px;padding:2px 7px}
+
+  .role{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:5px;margin-bottom:14px}
+  .role button{flex:1;border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13.5px;padding:9px 8px;border-radius:8px;cursor:pointer;transition:.15s}
+  .role button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+  .tabs{display:flex;gap:4px;overflow-x:auto;margin-bottom:16px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{white-space:nowrap;border:0;background:transparent;color:var(--muted);font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.3px;text-transform:uppercase;padding:8px 12px;border-radius:100px;cursor:pointer}
+  .tabs button[aria-selected="true"]{color:var(--chalk);background:var(--pitch)}
+  :root[data-theme="dark"] .tabs button[aria-selected="true"]{color:#08130d}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs button[aria-selected="true"]{color:#08130d}}
+  .tab-count{display:inline-block;min-width:17px;text-align:center;font-size:11px;background:var(--danger);color:#fff;border-radius:100px;padding:0 5px;margin-left:5px;vertical-align:1px;font-family:'Barlow',sans-serif}
+
+  .section-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:15px;color:var(--muted);margin:2px 0 10px}
+  .hint{font-size:12.5px;color:var(--muted);margin:-4px 0 14px;line-height:1.5}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .list{display:flex;flex-direction:column;gap:9px}
+  .row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow)}
+  .avatar{width:40px;height:40px;flex:0 0 auto;border-radius:11px;background:var(--surface-2);color:var(--pitch);display:grid;place-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;position:relative}
+  .avatar .dz{position:absolute;bottom:-4px;right:-4px;background:var(--text);color:var(--bg);font-size:10px;font-weight:700;border-radius:100px;min-width:16px;height:16px;display:grid;place-items:center;padding:0 3px}
+  .who{min-width:0;flex:1}
+  .who .alias{font-weight:600;font-size:15.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .who .real{font-size:12px;color:var(--muted);margin-top:1px}
+
+  .btn{border:0;border-radius:9px;font-family:'Barlow',sans-serif;font-weight:600;font-size:13.5px;padding:8px 13px;cursor:pointer;white-space:nowrap;transition:.15s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--pitch);color:var(--chalk)}
+  :root[data-theme="dark"] .btn-primary{color:#08130d}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-primary{color:#08130d}}
+  .btn-ghost{background:var(--surface-2);color:var(--text)}
+  .btn-danger{background:var(--danger-soft);color:var(--danger)}
+  .btn-block{width:100%;padding:13px;font-size:15px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .actions{display:flex;gap:7px}
+
+  .conv-head{display:flex;align-items:center;justify-content:space-between;background:var(--pitch);color:var(--chalk);border-radius:var(--radius);padding:13px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+  :root[data-theme="dark"] .conv-head{color:#08130d}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .conv-head{color:#08130d}}
+  .conv-head .count{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+  .conv-head .lbl{font-size:12px;opacity:.9;text-transform:uppercase;letter-spacing:.5px}
+  .check{width:26px;height:26px;flex:0 0 auto;border-radius:8px;border:2px solid var(--border);background:var(--surface-2);cursor:pointer;display:grid;place-items:center;color:transparent}
+  .row.on .check{background:var(--pitch);border-color:var(--pitch);color:#fff}
+  .row.on .check svg{width:15px;height:15px}
+  .row.on{border-color:var(--pitch)}
+  .conv-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+  .conv-cell{display:flex;align-items:center;gap:9px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 11px;cursor:pointer;box-shadow:var(--shadow);font-family:'Barlow',sans-serif;color:var(--text)}
+  .conv-cell:active{transform:scale(.98)}
+  .conv-cell.on{border-color:var(--pitch);background:color-mix(in srgb,var(--pitch) 8%,var(--surface))}
+  .conv-cell .check{width:22px;height:22px}
+  .conv-cell.on .check{background:var(--pitch);border-color:var(--pitch);color:#fff}
+  .conv-cell.on .check svg{width:13px;height:13px}
+  .conv-cell .cell-dorsal{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;color:var(--muted);min-width:18px;text-align:center;font-variant-numeric:tabular-nums}
+  .conv-cell .cell-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .goal-num{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;min-width:24px;text-align:center}
+  .pending-tag{font-size:11px;font-weight:600;color:var(--gold);background:color-mix(in srgb,var(--gold) 15%,transparent);padding:2px 7px;border-radius:100px}
+  .step{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:100px;overflow:hidden}
+  .step button{border:0;background:var(--surface-2);width:34px;height:32px;font-size:18px;cursor:pointer;color:var(--text);line-height:1}
+  .step span{min-width:34px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+  .statline{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .statline .lab{font-weight:600;font-size:14.5px}
+  .statline .lab small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+
+  .stars{display:inline-flex;gap:3px}
+  .stars button{border:0;background:transparent;cursor:pointer;padding:0;line-height:0}
+  .stars svg{width:34px;height:34px}
+  .star-fill{fill:var(--gold)}
+  .star-empty{fill:none;stroke:var(--muted);stroke-width:1.6}
+  .rate-panel{padding:22px 16px;text-align:center}
+  .locked-note{font-size:12.5px;color:var(--muted);margin-top:12px}
+  .divider{height:1px;background:var(--border);margin:18px 0}
+  .secret-note{font-size:12px;color:var(--muted);background:var(--surface-2);border-radius:10px;padding:9px 12px;margin-top:14px;line-height:1.5}
+
+  .team{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .teams-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:420px){.teams-wrap{grid-template-columns:1fr}}
+  .team header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
+  .team.blanco header{background:var(--blanco);color:var(--blanco-ink)}
+  .team.negro header{background:var(--negro);color:var(--negro-ink)}
+  .team header .name{font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:16px}
+  .team header .force{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+  .team ul{list-style:none;margin:0;padding:6px 0;background:var(--surface)}
+  .team li{display:flex;align-items:center;gap:9px;padding:7px 14px;font-size:14px}
+  .team li .mini{width:22px;height:22px;border-radius:6px;background:var(--surface-2);display:grid;place-items:center;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+  .table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .table th,.table td{padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
+  .table th:first-child,.table td:first-child{text-align:left}
+  .table th{font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;text-transform:uppercase;font-size:12px;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border)}
+  .table tbody tr:not(:last-child) td{border-bottom:1px solid var(--border)}
+  .table td.big{font-weight:700}
+  .table tr.me{background:color-mix(in srgb,var(--pitch) 10%,transparent)}
+  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:12px;gap:2px}
+  .seg button{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+  .empty{text-align:center;color:var(--muted);padding:26px 16px;font-size:14px}
+  .banner{background:color-mix(in srgb,var(--gold) 14%,transparent);border:1px solid color-mix(in srgb,var(--gold) 40%,transparent);color:var(--text);border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:14px;line-height:1.5}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:100px;font-size:13.5px;font-weight:600;opacity:0;transition:.25s;z-index:60;box-shadow:var(--shadow);pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .backbtn{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--pitch);font-weight:600;font-size:14px;cursor:pointer;padding:0;margin-bottom:12px}
+
+  /* Login */
+  .login{max-width:400px;margin:8px auto 0}
+  .login .hero{text-align:center;padding:6px 0 18px}
+  .login .hero .big{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+  .login .hero p{color:var(--muted);font-size:13.5px;margin:4px 0 0}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+  .field input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:15px;color:var(--text);font-family:'Barlow',sans-serif}
+  .field input:focus{outline:2px solid var(--pitch);outline-offset:1px;border-color:var(--pitch)}
+  .login .seg{display:flex;width:100%;margin-bottom:16px}
+  .login .seg button{flex:1;text-align:center;font-size:13.5px}
+  .assigned{text-align:center;padding:24px 16px}
+  .assigned .num{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:72px;line-height:1;color:var(--pitch);font-variant-numeric:tabular-nums}
+  .demo-access{margin-top:22px;border-top:1px dashed var(--border);padding-top:16px}
+  .demo-access .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:center;margin-bottom:10px}
+  .demo-access .chips{display:flex;gap:8px}
+  .demo-access .chips button{flex:1}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.2" fill="#fff"/><path d="M12 6.4l3.4 2.5-1.3 4H9.9l-1.3-4L12 6.4z" fill="#0b5c3a"/><path d="M12 3.2v3.2M4.6 9.2l2.9 2.1M19.4 9.2l-2.9 2.1M8.6 12.9l-2 2.7M15.4 12.9l2 2.7M9.9 16.4h4.2" stroke="#0b5c3a" stroke-width="1.1" stroke-linecap="round"/></svg>
+    </div>
+    <div class="brand">
+      <h1>Pachanga Manager</h1>
+      <p>La peña del fútbol de los amiguetes</p>
+    </div>
+    <span class="demo-pill">Prototipo</span>
+  </div>
+  <div id="shell"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Datos de ejemplo (en memoria; nada se guarda) ---------- */
+let state = {
+  screen:'login', loginTab:'volver',
+  regMote:'', loginMote:'', loginPin:'', assignedId:null,
+  user:null, adminView:'admin',
+  adminTab:'altas', playerTab:'partido',
+  selected:null, starDraft:0, teams:null, classSort:'goals'
+};
+
+let players = [
+  {id:1,  mote:'Fran',    real:'Fran (tú)',   dorsal:10, admin:true,  approved:true, convocado:false, team:null, goals:0, assists:2, pj:14, pg:0, pa:0, ratings:[3,4,3]},
+  {id:2,  mote:'Feragi',  real:'Fernando',    dorsal:9,  admin:false, approved:true, convocado:true,  team:null, goals:3, assists:4, pj:12, pg:1, pa:1, ratings:[4,5,4,4]},
+  {id:3,  mote:'Chuti',   real:'Carlos',      dorsal:7,  admin:false, approved:true, convocado:true,  team:null, goals:1, assists:1, pj:9,  pg:0, pa:0, ratings:[3,3,3]},
+  {id:4,  mote:'El Tanke',real:'Dani',        dorsal:4,  admin:true,  approved:true, convocado:true,  team:null, goals:5, assists:0, pj:13, pg:0, pa:0, ratings:[5,4,5,5]},
+  {id:5,  mote:'Rulo',    real:'Raúl',        dorsal:6,  admin:false, approved:true, convocado:true,  team:null, goals:0, assists:3, pj:11, pg:2, pa:0, ratings:[2,3,2]},
+  {id:6,  mote:'Kike',    real:'Enrique',     dorsal:11, admin:false, approved:true, convocado:true,  team:null, goals:2, assists:2, pj:10, pg:0, pa:0, ratings:[4,3,4]},
+  {id:7,  mote:'Nino',    real:'Antonio',     dorsal:8,  admin:false, approved:true, convocado:true,  team:null, goals:1, assists:1, pj:8,  pg:0, pa:0, ratings:[3,3,2]},
+  {id:8,  mote:'Josemi',  real:'José Miguel', dorsal:5,  admin:false, approved:true, convocado:true,  team:null, goals:2, assists:5, pj:12, pg:0, pa:0, ratings:[4,4,3]},
+  {id:9,  mote:'Payo',    real:'Pablo',       dorsal:3,  admin:false, approved:true, convocado:true,  team:null, goals:0, assists:0, pj:6,  pg:0, pa:1, ratings:[3,3,4]},
+  {id:10, mote:'Sergi',   real:'Sergio',      dorsal:2,  admin:false, approved:true, convocado:true,  team:null, goals:4, assists:2, pj:13, pg:0, pa:0, ratings:[4,4,4]},
+  {id:11, mote:'Toni',    real:'Toni',        dorsal:12, admin:false, approved:true, convocado:true,  team:null, goals:0, assists:1, pj:7,  pg:0, pa:0, ratings:[2,3,3]},
+  {id:12, mote:'Manu',    real:'Manuel',      dorsal:1,  admin:false, approved:true, convocado:false, team:null, goals:1, assists:0, pj:5,  pg:0, pa:0, ratings:[3,4,3]}
+];
+let regs = [
+  {id:101, mote:'El Primo', dorsal:14},
+  {id:102, mote:'Guaje',    dorsal:15}
+];
+let myRatings = {}; // valoraciones que ha dado el usuario actual (secretas)
+let nextId = 200;
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const avg = p => p.ratings.length ? p.ratings.reduce((a,b)=>a+b,0)/p.ratings.length : 3;
+const inits = a => a.replace(/[^A-Za-zÀ-ÿ ]/g,'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const squad = () => players.filter(p=>p.approved);
+const convocados = () => players.filter(p=>p.convocado && p.approved);
+const freeDorsal = () => { let d=1; const used=new Set([...players,...regs].map(x=>x.dorsal)); while(used.has(d)) d++; return d; };
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+
+const starSvg = f => `<svg viewBox="0 0 24 24"><path class="${f?'star-fill':'star-empty'}" d="M12 3.2l2.6 5.5 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.4l6-.7z"/></svg>`;
+const check = `<svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const av = p => `<div class="avatar">${inits(p.mote)}<span class="dz">${p.dorsal}</span></div>`;
+const avPlain = p => `<div class="avatar">${inits(p.mote)}</div>`;
+
+/* ================= LOGIN ================= */
+function renderLogin(){
+  let body='';
+  if(state.assignedId){
+    const p = players.find(x=>x.id===state.assignedId);
+    body = `<div class="card assigned">
+      <div class="section-title" style="text-align:center">Tu dorsal (y tu PIN)</div>
+      <div class="num">${p.dorsal}</div>
+      <p class="hint" style="margin:10px 0 0">Apúntatelo, <b>${p.mote}</b>. Es tu número para volver a entrar (mote + dorsal). Un admin tiene que aprobar tu alta antes de que puedas valorar y apuntar goles.</p>
+      <button class="btn btn-primary btn-block" style="margin-top:16px" data-action="enter" data-id="${p.id}">Entrar</button>
+    </div>`;
+  } else {
+    const seg = `<div class="seg">
+      <button data-action="ltab" data-tab="volver" aria-pressed="${state.loginTab==='volver'}">Ya estoy en la peña</button>
+      <button data-action="ltab" data-tab="nuevo" aria-pressed="${state.loginTab==='nuevo'}">Soy nuevo</button>
+    </div>`;
+    const form = state.loginTab==='volver'
+      ? `<div class="field"><label>Tu mote</label><input id="in-mote" placeholder="Ej: Feragi" value="${state.loginMote}"></div>
+         <div class="field"><label>Tu dorsal (PIN)</label><input id="in-pin" inputmode="numeric" placeholder="Ej: 9" value="${state.loginPin}"></div>
+         <button class="btn btn-primary btn-block" data-action="login">Entrar</button>`
+      : `<div class="field"><label>Elige tu mote de la pachanga</label><input id="in-newmote" placeholder="Ej: El Muro" value="${state.regMote}"></div>
+         <p class="hint">Al unirte se te asignará un <b>dorsal</b> que hará de PIN para futuras entradas.</p>
+         <button class="btn btn-primary btn-block" data-action="register">Unirme a la peña</button>`;
+    body = `<div class="card" style="padding:18px">${seg}${form}</div>
+      <div class="demo-access">
+        <div class="lbl">Atajo solo para probar el prototipo</div>
+        <div class="chips">
+          <button class="btn btn-ghost" data-action="enter" data-id="1">Entrar como Fran (admin)</button>
+          <button class="btn btn-ghost" data-action="enter" data-id="2">Entrar como Feragi</button>
+        </div>
+      </div>`;
+  }
+  $('#shell').innerHTML = `<div class="login">
+    <div class="hero"><div class="big">Bienvenido a la peña</div><p>Identifícate para gestionar los partidos</p></div>
+    ${body}</div>`;
+}
+
+/* ================= TABS + CHROME ================= */
+function renderChrome(){
+  const u = state.user;
+  const isAdminView = u.admin && state.adminView==='admin';
+  let html = `<div class="whoami">
+    <div class="dorsal">${u.dorsal}</div>
+    <div class="n">${u.mote} ${u.admin?'<span class="admin-star">Admin</span>':''}<small>${u.approved?'Alta confirmada':'Alta pendiente de aprobación'}</small></div>
+    <button class="btn btn-ghost" data-action="logout">Salir</button>
+  </div>`;
+  if(u.admin){
+    html += `<div class="role"><button data-action="aview" data-v="admin" aria-pressed="${state.adminView==='admin'}">Panel de admin</button>
+      <button data-action="aview" data-v="player" aria-pressed="${state.adminView==='player'}">Vista jugador</button></div>`;
+  }
+  const tabs = isAdminView
+    ? [['altas','Altas',regs.length],['convocatoria','Convocatoria y equipos',0],['goles','Goles/Asist.',players.reduce((a,p)=>a+p.pg+p.pa,0)],['pena','Peña',0]]
+    : [['partido','Mi partido',0],['plantilla','Valorar',0],['clasi','Clasificación',0]];
+  const active = isAdminView?state.adminTab:state.playerTab;
+  html += `<nav class="tabs">${tabs.map(([id,l,b])=>`<button data-action="tab" data-tab="${id}" aria-selected="${active===id}">${l}${b?`<span class="tab-count">${b}</span>`:''}</button>`).join('')}</nav><main id="view"></main>`;
+  $('#shell').innerHTML = html;
+}
+
+/* ================= ADMIN VIEWS ================= */
+function vAltas(){
+  if(!regs.length) return `<div class="empty">No hay altas pendientes. Cuando alguien se registre con el enlace, aparecerá aquí.</div>`;
+  return `<div class="section-title">Nuevos registros por aprobar</div>
+  <p class="hint">Cada uno entra con su mote y su dorsal. Confirma que es de la peña.</p>
+  <div class="list">${regs.map(r=>`<div class="row">
+    <div class="avatar">${inits(r.mote)}<span class="dz">${r.dorsal}</span></div>
+    <div class="who"><div class="alias">${r.mote}</div><div class="real">Dorsal ${r.dorsal}</div></div>
+    <div class="actions"><button class="btn btn-danger" data-action="reject" data-id="${r.id}">No</button>
+    <button class="btn btn-primary" data-action="approve" data-id="${r.id}">Aprobar</button></div></div>`).join('')}</div>`;
+}
+function vConvocatoria(){
+  const n=convocados().length;
+  const head=`<div class="conv-head"><div><div class="lbl">Convocados</div><div style="font-size:13px;opacity:.9">${state.teams?'Equipos hechos':'Marca a los que juegan'}</div></div><div class="count">${n}/10</div></div>`;
+  if(state.teams){
+    const {B,N,sumB,sumN}=state.teams;
+    const t=(arr,cls,name,sum)=>`<div class="team ${cls}"><header><span class="name">${name}</span><span class="force">${sum.toFixed(1)}</span></header>
+      <ul>${arr.map(p=>`<li><span class="mini">${p.dorsal}</span>${p.mote}</li>`).join('')}</ul></div>`;
+    return head+`<div class="teams-wrap">${t(B,'blanco','Equipo Blanco',sumB)}${t(N,'negro','Equipo Negro',sumN)}</div>
+      <p class="hint" style="text-align:center;margin:12px 0 14px">Diferencia de fuerza: <b>${Math.abs(sumB-sumN).toFixed(1)} pts</b> · las notas de cada jugador no se muestran.</p>
+      <div class="actions" style="justify-content:center;gap:8px">
+        <button class="btn btn-ghost" data-action="undo-teams">‹ Volver a elegir</button>
+        <button class="btn btn-primary" data-action="teams">↻ Rebarajar</button></div>`;
+  }
+  return head+`<p class="hint">${n===10?'✔ Ya tienes los 10. Dale a Crear equipos.':n<10?`Faltan ${10-n} por marcar.`:`Te has pasado: quita ${n-10}.`}</p>
+    <div class="field" style="margin-bottom:12px"><input id="conv-search" placeholder="Buscar por mote o nombre…" value="${state.convSearch||''}"></div>
+    <div class="conv-grid">${squad().map(p=>`<button class="conv-cell ${p.convocado?'on':''}" data-action="convoca" data-id="${p.id}" data-name="${(p.mote+' '+p.real).toLowerCase()}">
+      <span class="check">${check}</span><span class="cell-dorsal">${p.dorsal}</span><span class="cell-name">${p.mote}</span></button>`).join('')}</div>
+    <div class="empty" id="conv-empty" hidden>Nadie coincide con la búsqueda.</div>
+    <button class="btn btn-primary btn-block" style="margin-top:16px" data-action="teams" ${n===10?'':'disabled'}>⚙️ Crear equipos (Blanco vs Negro)</button>
+    ${n!==10?`<p class="hint" style="text-align:center;margin-top:8px">Necesitas exactamente 10 convocados para crear los equipos.</p>`:''}`;
+}
+function vGoles(){
+  const pend=squad().filter(p=>p.pg>0||p.pa>0);
+  return `<div class="section-title">Goles y asistencias por confirmar</div>
+  <p class="hint">Cada jugador apunta lo suyo desde su cuenta. Tú lo confirmas antes de que cuente en la clasificación.</p>
+  ${pend.length?`<div class="list">${pend.map(p=>`<div class="row">${av(p)}
+    <div class="who"><div class="alias">${p.mote}</div><div class="real">
+    ${p.pg?`<span class="pending-tag">+${p.pg} gol${p.pg>1?'es':''}</span> `:''}${p.pa?`<span class="pending-tag">+${p.pa} asist.</span>`:''}</div></div>
+    <div class="actions">${state.askCancel===p.id
+      ? `<button class="btn btn-ghost" data-action="abort-cancel">No</button><button class="btn btn-danger" data-action="do-cancel" data-id="${p.id}">¿Seguro? Borrar</button>`
+      : `<button class="btn btn-danger" data-action="ask-cancel" data-id="${p.id}">Descartar</button><button class="btn btn-primary" data-action="confirm" data-id="${p.id}">Confirmar</button>`}</div></div>`).join('')}</div>`
+    :`<div class="empty">Nada pendiente. Todo al día 👌</div>`}`;
+}
+function vPena(){
+  return `<div class="section-title">Miembros de la peña</div>
+  <p class="hint">Puedes hacer admin a otro jugador para que gestione contigo (aprobar altas, convocar, confirmar goles, crear equipos).</p>
+  <div class="list">${squad().map(p=>`<div class="row">${av(p)}
+    <div class="who"><div class="alias">${p.mote} ${p.admin?'<span class="admin-star">Admin</span>':''}</div><div class="real">${p.real}</div></div>
+    ${p.id===state.user.id?`<span class="real">Tú</span>`:
+      `<button class="btn ${p.admin?'btn-danger':'btn-ghost'}" data-action="toggle-admin" data-id="${p.id}">${p.admin?'Quitar admin':'Hacer admin'}</button>`}</div>`).join('')}</div>`;
+}
+
+/* ================= PLAYER VIEWS ================= */
+function vPartido(){
+  const u=players.find(p=>p.id===state.user.id);
+  let teamCard;
+  if(!u.convocado) teamCard=`<div class="banner">No estás convocado para el próximo partido. El admin decide los 10.</div>`;
+  else if(!u.team) teamCard=`<div class="banner">Estás convocado ✔ · Los equipos todavía no están hechos.</div>`;
+  else teamCard=`<div class="team ${u.team==='blanco'?'blanco':'negro'}" style="margin-bottom:16px"><header><span class="name">Juegas en el Equipo ${u.team==='blanco'?'Blanco':'Negro'}</span><span class="force">${u.dorsal}</span></header></div>`;
+  const gate = !u.approved ? `<div class="banner">Tu alta está pendiente. Podrás apuntar goles y valorar cuando un admin te apruebe.</div>` : '';
+  return `<div class="section-title">Mi próximo partido</div>${gate}${teamCard}
+  <div class="section-title">Lo mío</div>
+  <p class="hint">Apunta tus goles y asistencias. Le llegan al admin para que los confirme.</p>
+  <div class="list">
+    <div class="statline"><div class="lab">Goles <small>${u.goals} confirmados${u.pg?` · +${u.pg} sin confirmar`:''}</small></div>
+      <div class="step"><button data-action="dec" data-t="pg" ${u.approved?'':'disabled'}>−</button><span>${u.pg}</span><button data-action="inc" data-t="pg" ${u.approved?'':'disabled'}>+</button></div></div>
+    <div class="statline"><div class="lab">Asistencias <small>${u.assists} confirmadas${u.pa?` · +${u.pa} sin confirmar`:''}</small></div>
+      <div class="step"><button data-action="dec" data-t="pa" ${u.approved?'':'disabled'}>−</button><span>${u.pa}</span><button data-action="inc" data-t="pa" ${u.approved?'':'disabled'}>+</button></div></div>
+  </div>`;
+}
+function vPlantilla(){
+  const u=state.user;
+  const others=squad().filter(p=>p.id!==u.id);
+  if(!u.approved) return `<div class="banner">Podrás valorar a tus compañeros cuando un admin apruebe tu alta.</div>`;
+  return `<div class="section-title">Valora a tus compañeros</div>
+  <p class="hint">Pulsa sobre un compañero y dale de 1 a 5 estrellas de calidad. Solo <b>una vez</b> por persona, y es <b>secreta</b>: nadie ve la nota de nadie.</p>
+  <div class="list">${others.map(p=>{
+    const rated=myRatings[p.id]!=null;
+    return `<div class="row" data-action="open-rate" data-id="${p.id}" style="cursor:pointer">${avPlain(p)}
+      <div class="who"><div class="alias">${p.mote}</div><div class="real">${p.real}</div></div>
+      ${rated?`<span class="pending-tag">Ya la diste ✔</span>`:`<span class="btn btn-ghost">Valorar ›</span>`}</div>`;
+  }).join('')}</div>`;
+}
+function vRate(){
+  const p=players.find(x=>x.id===state.selected);
+  const rated=myRatings[p.id]!=null;
+  const shown=rated?myRatings[p.id]:state.starDraft;
+  return `<button class="backbtn" data-action="back">‹ Volver</button>
+  <div class="card rate-panel">
+    <div class="avatar" style="width:56px;height:56px;font-size:22px;margin:0 auto 10px">${inits(p.mote)}</div>
+    <div class="alias" style="font-size:20px;font-weight:700">${p.mote}</div>
+    <div class="real" style="color:var(--muted);font-size:13px">${p.real}</div>
+    <div class="divider"></div>
+    ${rated?`<div class="section-title" style="text-align:center">Tu valoración (secreta)</div>
+      <div class="stars" style="justify-content:center">${[1,2,3,4,5].map(s=>starSvg(s<=shown)).join('')}</div>
+      <div class="locked-note">🔒 Ya valoraste a ${p.mote}. No se puede cambiar.</div>`
+    :`<div class="section-title" style="text-align:center">Tu valoración de calidad</div>
+      <div class="stars" style="justify-content:center">${[1,2,3,4,5].map(s=>`<button data-action="set-star" data-star="${s}">${starSvg(s<=shown)}</button>`).join('')}</div>
+      <button class="btn btn-primary" style="margin-top:16px;padding:11px 26px;font-size:15px" data-action="submit-rate" data-id="${p.id}" ${shown?'':'disabled'}>Enviar valoración</button>`}
+    <div class="secret-note">🔒 Las notas individuales son invisibles para todos. Solo se usan para equilibrar los equipos y se muestra la fuerza total de cada uno.</div>
+  </div>`;
+}
+function vClasi(){
+  const s=state.classSort;
+  const key={goals:'goals',assists:'assists',pj:'pj'}[s];
+  const ranked=[...squad()].sort((a,b)=>b[key]-a[key]||b.goals-a.goals);
+  return `<div class="section-title">Clasificación de la peña</div>
+  <div class="seg"><button data-action="sort" data-s="goals" aria-pressed="${s==='goals'}">Goles</button>
+    <button data-action="sort" data-s="assists" aria-pressed="${s==='assists'}">Asistencias</button>
+    <button data-action="sort" data-s="pj" aria-pressed="${s==='pj'}">Partidos</button></div>
+  <table class="table"><thead><tr><th>Jugador</th><th>G</th><th>A</th><th>PJ</th></tr></thead>
+  <tbody>${ranked.map(p=>`<tr class="${p.id===state.user.id?'me':''}">
+    <td>${p.mote}${p.id===state.user.id?' (tú)':''}</td>
+    <td class="${key==='goals'?'big':''}">${p.goals}</td>
+    <td class="${key==='assists'?'big':''}">${p.assists}</td>
+    <td class="${key==='pj'?'big':''}">${p.pj}</td></tr>`).join('')}</tbody></table>`;
+}
+
+/* ================= ROUTER ================= */
+function render(){
+  if(state.screen==='login'){ renderLogin(); return; }
+  renderChrome();
+  const isAdminView = state.user.admin && state.adminView==='admin';
+  let v='';
+  if(isAdminView) v={altas:vAltas,convocatoria:vConvocatoria,goles:vGoles,pena:vPena}[state.adminTab]();
+  else v = state.selected ? vRate() : {partido:vPartido,plantilla:vPlantilla,clasi:vClasi}[state.playerTab]();
+  $('#view').innerHTML=v;
+  applyConvFilter();
+}
+
+function applyConvFilter(){
+  const inp=document.querySelector('#conv-search'); if(!inp) return;
+  const q=(state.convSearch||'').trim().toLowerCase();
+  let any=false;
+  document.querySelectorAll('.conv-cell').forEach(c=>{ const m=c.dataset.name.includes(q); c.hidden=!m; if(m)any=true; });
+  const emp=document.querySelector('#conv-empty'); if(emp) emp.hidden=any;
+}
+document.addEventListener('input',e=>{ if(e.target.id==='conv-search'){ state.convSearch=e.target.value; applyConvFilter(); } });
+
+/* equipos: barajar + reparto codicioso equilibrado */
+function makeTeams(){
+  players.forEach(p=>p.team=null);
+  const pool=convocados().map(p=>({p,r:avg(p)}));
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  pool.sort((a,b)=>b.r-a.r);
+  const B=[],N=[];let sumB=0,sumN=0;
+  for(const {p,r} of pool){
+    if(B.length>=5){N.push(p);sumN+=r;p.team='negro';continue;}
+    if(N.length>=5){B.push(p);sumB+=r;p.team='blanco';continue;}
+    if(sumB<=sumN){B.push(p);sumB+=r;p.team='blanco';}else{N.push(p);sumN+=r;p.team='negro';}
+  }
+  state.teams={B,N,sumB,sumN};
+}
+
+/* ================= EVENTOS ================= */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-action]'); if(!el) return;
+  const a=el.dataset.action, id=+el.dataset.id;
+
+  // login
+  if(a==='ltab'){ state.loginTab=el.dataset.tab; render(); return; }
+  if(a==='login'){ const m=$('#in-mote').value.trim(), pin=$('#in-pin').value.trim();
+    const p=players.find(x=>x.mote.toLowerCase()===m.toLowerCase() && String(x.dorsal)===pin);
+    if(!p){ toast('Mote o dorsal incorrecto'); return; }
+    state.user=p; state.screen='app'; state.adminView=p.admin?'admin':'player'; render(); return; }
+  if(a==='register'){ const m=$('#in-newmote').value.trim(); if(!m){toast('Escribe un mote');return;}
+    if([...players,...regs].some(x=>x.mote.toLowerCase()===m.toLowerCase())){toast('Ese mote ya existe');return;}
+    const d=freeDorsal(), pid=nextId++;
+    players.push({id:pid,mote:m,real:'(nuevo)',dorsal:d,admin:false,approved:false,convocado:false,team:null,goals:0,assists:0,pj:0,pg:0,pa:0,ratings:[]});
+    regs.push({id:pid,mote:m,dorsal:d}); state.assignedId=pid; render(); return; }
+  if(a==='enter'){ const p=players.find(x=>x.id===id); state.user=p; state.screen='app'; state.assignedId=null; state.adminView=p.admin?'admin':'player'; render(); return; }
+  if(a==='logout'){ state={...state,screen:'login',user:null,selected:null,assignedId:null,teams:null}; myRatings={}; render(); return; }
+
+  // chrome
+  if(a==='aview'){ state.adminView=el.dataset.v; state.selected=null; state.askCancel=null; render(); return; }
+  if(a==='tab'){ state.askCancel=null; const isAdminView=state.user.admin&&state.adminView==='admin'; if(isAdminView)state.adminTab=el.dataset.tab; else{state.playerTab=el.dataset.tab;state.selected=null;} render(); return; }
+
+  // admin
+  if(a==='approve'){ const r=regs.find(x=>x.id===id); const p=players.find(x=>x.id===id); if(p)p.approved=true; regs=regs.filter(x=>x.id!==id); toast(`${r.mote} aprobado ✔`); render(); return; }
+  if(a==='reject'){ const r=regs.find(x=>x.id===id); players=players.filter(x=>x.id!==id); regs=regs.filter(x=>x.id!==id); toast(`${r.mote} rechazado`); render(); return; }
+  if(a==='convoca'){ const p=players.find(x=>x.id===id); if(!p.convocado&&convocados().length>=10){toast('Ya hay 10');return;} p.convocado=!p.convocado; state.teams=null; players.forEach(x=>x.team=null); render(); return; }
+  if(a==='confirm'){ const p=players.find(x=>x.id===id); p.goals+=p.pg; p.assists+=p.pa; toast(`Confirmado lo de ${p.mote}`); p.pg=0; p.pa=0; state.askCancel=null; render(); return; }
+  if(a==='ask-cancel'){ state.askCancel=id; render(); return; }
+  if(a==='abort-cancel'){ state.askCancel=null; render(); return; }
+  if(a==='do-cancel'){ const p=players.find(x=>x.id===id); p.pg=0; p.pa=0; state.askCancel=null; toast(`Descartado lo de ${p.mote}`); render(); return; }
+  if(a==='teams'){ makeTeams(); render(); return; }
+  if(a==='undo-teams'){ state.teams=null; players.forEach(p=>p.team=null); render(); return; }
+  if(a==='toggle-admin'){ const p=players.find(x=>x.id===id); p.admin=!p.admin; toast(p.admin?`${p.mote} ahora es admin`:`${p.mote} ya no es admin`); render(); return; }
+
+  // player
+  if(a==='inc'||a==='dec'){ const u=players.find(p=>p.id===state.user.id); const t=el.dataset.t; u[t]=Math.max(0,u[t]+(a==='inc'?1:-1)); if(a==='inc')toast('Añadido · pendiente de confirmar'); render(); return; }
+  if(a==='open-rate'){ state.selected=id; state.starDraft=0; render(); return; }
+  if(a==='back'){ state.selected=null; render(); return; }
+  if(a==='set-star'){ state.starDraft=+el.dataset.star; render(); return; }
+  if(a==='submit-rate'){ const p=players.find(x=>x.id===id); p.ratings.push(state.starDraft); myRatings[id]=state.starDraft; toast(`Valoración enviada (secreta)`); state.starDraft=0; render(); return; }
+  if(a==='sort'){ state.classSort=el.dataset.s; render(); return; }
+});
+
+render();
+</script>
+
+</body></html>

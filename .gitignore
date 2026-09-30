@@ -1,0 +1,44 @@
+# --- Secretos (NUNCA a git) ---
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+keystore.properties
+
+# --- Python / backend ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+backend/instance/
+*.db
+*.sqlite3
+
+# --- Node / frontend ---
+node_modules/
+dist/
+*.log
+
+# --- Android / Gradle ---
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+.idea/
+*.iml
+captures/
+
+# --- Editor / sistema ---
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Ajustes locales de Claude Code ---
+.claude/settings.local.json
