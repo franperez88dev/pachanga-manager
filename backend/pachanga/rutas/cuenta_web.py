@@ -16,7 +16,7 @@ PLANTILLA = """<!doctype html>
   @media (prefers-color-scheme:dark){body{background:#0d1411;color:#e9efe8}input{background:#161f1a;color:#e9efe8}}
   h1{color:#0f7a4d;font-size:22px}
   label{display:block;font-weight:600;margin-top:12px}
-  input[type=text]{width:100%;box-sizing:border-box;padding:10px;font-size:16px;border:1px solid #b9c5ad;border-radius:8px}
+  input[type=text],input[type=password]{width:100%;box-sizing:border-box;padding:10px;font-size:16px;border:1px solid #b9c5ad;border-radius:8px}
   button{margin-top:18px;width:100%;padding:12px;font-size:16px;font-weight:600;border:0;border-radius:8px;background:#c0392b;color:#fff}
   .aviso{padding:12px;border-radius:8px;margin:14px 0}
   .ok{background:#dff3e8}.error{background:#f7e4e1;color:#8b2418}
@@ -26,14 +26,14 @@ PLANTILLA = """<!doctype html>
   <p class="aviso ok">Tu cuenta y todos tus datos se han borrado.</p>
 {% else %}
   <p>Se borrarán <b>de forma definitiva</b> tu cuenta y todos tus datos: mote, nombre real,
-  dorsal, las valoraciones que diste y recibiste, tus goles, asistencias y convocatorias.</p>
+  dorsal, PIN, las valoraciones que diste y recibiste, tus goles, asistencias y convocatorias.</p>
   <p>También puedes hacerlo desde la app, en <b>Perfil → Borrar mi cuenta</b>.</p>
   {% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
   <form method="post">
     <label for="mote">Tu mote</label>
     <input type="text" id="mote" name="mote" required autocomplete="username">
-    <label for="dorsal">Tu dorsal</label>
-    <input type="text" id="dorsal" name="dorsal" required inputmode="numeric" autocomplete="off">
+    <label for="pin">Tu PIN</label>
+    <input type="password" id="pin" name="pin" required inputmode="numeric" maxlength="4" autocomplete="current-password">
     <label><input type="checkbox" name="confirmar" value="si" required>
       Entiendo que el borrado no se puede deshacer</label>
     <button type="submit">Borrar mi cuenta para siempre</button>
@@ -49,7 +49,7 @@ def borrar_cuenta():
     if request.form.get("confirmar") != "si":
         return render_template_string(PLANTILLA, error="Marca la casilla de confirmación"), 400
     try:
-        usuario = verificar_credenciales(request.form.get("mote", ""), request.form.get("dorsal", ""))
+        usuario = verificar_credenciales(request.form.get("mote", ""), request.form.get("pin", ""))
         borrar_usuario(usuario)
     except ErrorApi as e:
         return render_template_string(PLANTILLA, error=e.mensaje), e.status

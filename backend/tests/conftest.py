@@ -15,6 +15,7 @@ def app():
         "TESTING": True,
         "SECRET_KEY": "clave-de-test",
         "SQLALCHEMY_DATABASE_URI": "sqlite://",
+        "PIN_HASH_METODO": "pbkdf2:sha256:1000",  # hash rápido: en los tests no hace falta que sea lento
     })
     with app.app_context():
         yield app
@@ -30,10 +31,11 @@ def client(app):
 class Jugador:
     """Un usuario de prueba con su token listo para usar."""
 
-    def __init__(self, usuario):
+    def __init__(self, usuario, pin):
         self.id = usuario.id
         self.mote = usuario.mote
         self.dorsal = usuario.dorsal
+        self.pin = pin
         self.headers = {"Authorization": f"Bearer {crear_token(usuario)}"}
 
 
@@ -41,9 +43,9 @@ class Jugador:
 def nuevo(app):
     """nuevo("Kike") crea un jugador aprobado; nuevo("Fran", admin=True) un admin."""
     def _crear(mote, admin=False, estado=ESTADO_APROBADO):
-        u = crear_usuario(mote, rol=ROL_ADMIN if admin else ROL_JUGADOR, estado=estado)
+        u, pin = crear_usuario(mote, rol=ROL_ADMIN if admin else ROL_JUGADOR, estado=estado)
         db.session.commit()
-        return Jugador(u)
+        return Jugador(u, pin)
     return _crear
 
 
@@ -71,3 +73,12 @@ def partido_con_equipos(client, admin, plantilla):
                       headers=admin.headers).status_code == 200
     assert client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers).status_code == 200
     return pid
+
+
+@pytest.fixture
+def partido_cerrado(client, admin, partido_con_equipos):
+    """El mismo partido, ya jugado y cerrado con un 3-2."""
+    r = client.post(f"/api/partidos/{partido_con_equipos}/cerrar", json={"goles_blanco": 3, "goles_negro": 2},
+                    headers=admin.headers)
+    assert r.status_code == 200
+    return partido_con_equipos

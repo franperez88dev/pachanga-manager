@@ -1,17 +1,36 @@
-"""Tokens de sesión, bloqueo por intentos fallidos y control de permisos."""
+"""PIN, tokens de sesión, bloqueo por intentos fallidos y control de permisos."""
 import hashlib
 import hmac
+import secrets
 from datetime import timedelta
 from functools import wraps
 
 from flask import current_app, g, request
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .errores import ErrorApi
 from .extensions import db
 from .models import IntentoAcceso, User, ahora
 
-MENSAJE_LOGIN_INCORRECTO = "Mote o dorsal incorrectos"
+MENSAJE_LOGIN_INCORRECTO = "Mote o PIN incorrectos"
+CIFRAS_PIN = 4
+
+
+# ---------------------------------------------------------------- PIN
+def nuevo_pin():
+    """PIN aleatorio de 4 cifras (puede empezar por 0, p. ej. '0427').
+    `secrets` usa el generador seguro del sistema, no el de `random`."""
+    return f"{secrets.randbelow(10 ** CIFRAS_PIN):0{CIFRAS_PIN}d}"
+
+
+def hash_pin(pin):
+    # Como con una contraseña: guardamos un hash lento con sal, nunca el PIN en claro
+    return generate_password_hash(pin, method=current_app.config["PIN_HASH_METODO"])
+
+
+def pin_correcto(usuario, pin):
+    return check_password_hash(usuario.pin_hash, pin)
 
 
 # ---------------------------------------------------------------- tokens
@@ -76,6 +95,7 @@ def requiere_admin(f):
         if not (g.usuario.aprobado and g.usuario.es_admin):
             raise ErrorApi(403, "Solo un admin puede hacer esto")
         return f(*args, **kwargs)
+    envoltura.solo_admin = True  # marca que usan los tests para comprobar que no se olvida ninguna
     return envoltura
 
 
@@ -140,13 +160,25 @@ def normalizar_mote(mote):
     return " ".join(mote.split()).casefold()
 
 
-def verificar_credenciales(mote, dorsal_texto):
-    """Comprueba mote + dorsal aplicando el bloqueo por mote y por IP.
+_hash_de_relleno = {}
 
-    - Si el mote no existe o el dorsal no coincide, el error es EXACTAMENTE el mismo.
+
+def _comprobar_pin_de_relleno(pin):
+    """Si el mote no existe, comprobamos igualmente un PIN contra un hash cualquiera.
+    Así la respuesta tarda lo mismo y no se puede adivinar por el tiempo qué motes existen."""
+    metodo = current_app.config["PIN_HASH_METODO"]
+    if metodo not in _hash_de_relleno:
+        _hash_de_relleno[metodo] = generate_password_hash("relleno", method=metodo)
+    check_password_hash(_hash_de_relleno[metodo], pin)
+
+
+def verificar_credenciales(mote, pin):
+    """Comprueba mote + PIN aplicando el bloqueo por mote y por IP.
+
+    - Si el mote no existe o el PIN no coincide, el error es EXACTAMENTE el mismo.
     - El contador por mote funciona también con motes que no existen, así el bloqueo
       no delata qué motes están registrados.
-    - Mientras hay bloqueo ni siquiera se comprueba el dorsal.
+    - Mientras hay bloqueo ni siquiera se comprueba el PIN.
     Devuelve el usuario o lanza ErrorApi (401 o 429). Hace commit de los contadores.
     """
     cfg = current_app.config
@@ -158,14 +190,13 @@ def verificar_credenciales(mote, dorsal_texto):
         raise error_demasiados_intentos(espera)
 
     usuario = User.query.filter_by(mote_normalizado=normalizar_mote(mote)).first()
-    dorsal_texto = (dorsal_texto or "").strip()
-    correcto = (
-        usuario is not None
-        and dorsal_texto.isascii()
-        and dorsal_texto.isdigit()
-        and len(dorsal_texto) <= 6
-        and hmac.compare_digest(str(int(dorsal_texto)), str(usuario.dorsal))
-    )
+    pin = (pin or "").strip()
+    formato_ok = len(pin) == CIFRAS_PIN and pin.isascii() and pin.isdigit()
+    if usuario is None:
+        _comprobar_pin_de_relleno(pin)
+        correcto = False
+    else:
+        correcto = pin_correcto(usuario, pin) and formato_ok
 
     limpiar_intentos_viejos()
     if not correcto:
@@ -175,7 +206,7 @@ def verificar_credenciales(mote, dorsal_texto):
         raise ErrorApi(401, MENSAJE_LOGIN_INCORRECTO)
 
     # El contador por IP no se limpia al acertar: si no, quien tenga una cuenta
-    # podría alternar aciertos y fallos para probar dorsales de otros sin límite.
+    # podría alternar aciertos y fallos para probar PINes de otros sin límite.
     olvidar_intentos(clave_mote)
     db.session.commit()
     return usuario

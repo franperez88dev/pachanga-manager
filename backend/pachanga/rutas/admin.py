@@ -1,15 +1,15 @@
-"""Panel de admin: altas, admins, confirmar goles y consultar un dorsal olvidado."""
+"""Panel de admin: altas, admins, confirmar goles y PIN nuevo para quien lo olvide."""
 from flask import Blueprint, jsonify, request
 
 from ..errores import ErrorApi
 from ..extensions import db
 from ..models import (
-    ESTADO_APROBADO, ESTADO_PENDIENTE, ESTADO_RECHAZADO, REPORTE_CONFIRMADO,
+    ESTADO_APROBADO, ESTADO_PENDIENTE, REPORTE_CONFIRMADO,
     REPORTE_DESCARTADO, REPORTE_PENDIENTE, ROL_ADMIN, ROL_JUGADOR, StatReport, User,
 )
 from ..serializadores import reporte, usuario_admin
 from ..seguridad import requiere_admin
-from ..servicios import numero_admins
+from ..servicios import numero_admins, regenerar_pin
 from . import cuerpo_json
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
@@ -30,26 +30,30 @@ def altas_pendientes():
     return jsonify(altas=[usuario_admin(u) for u in us])
 
 
-def _resolver_alta(uid, nuevo_estado):
+def alta_pendiente_o_error(uid):
     u = usuario_o_404(uid)
     if u.estado != ESTADO_PENDIENTE:
         raise ErrorApi(409, "Esa alta ya estaba resuelta")
-    u.estado = nuevo_estado
-    db.session.commit()
-    return jsonify(usuario=usuario_admin(u))
+    return u
 
 
 @bp.post("/usuarios/<int:uid>/aprobar")
 @requiere_admin
 def aprobar(uid):
-    return _resolver_alta(uid, ESTADO_APROBADO)
+    u = alta_pendiente_o_error(uid)
+    u.estado = ESTADO_APROBADO
+    db.session.commit()
+    return jsonify(usuario=usuario_admin(u))
 
 
 @bp.post("/usuarios/<int:uid>/rechazar")
 @requiere_admin
 def rechazar(uid):
-    # El usuario rechazado se conserva (y con él su dorsal y su mote, que no se reutilizan)
-    return _resolver_alta(uid, ESTADO_RECHAZADO)
+    # Un alta rechazada se borra: su mote y su dorsal quedan libres para otro
+    u = alta_pendiente_o_error(uid)
+    db.session.delete(u)
+    db.session.commit()
+    return "", 204
 
 
 # ------------------------------------------------------------ gestión de admins
@@ -76,13 +80,16 @@ def cambiar_rol(uid):
     return jsonify(usuario=usuario_admin(u))
 
 
-# ------------------------------------------------------------ dorsal olvidado
-@bp.get("/usuarios/<int:uid>/dorsal")
+# ------------------------------------------------------------ PIN olvidado
+@bp.post("/usuarios/<int:uid>/pin")
 @requiere_admin
-def consultar_dorsal(uid):
-    """El ÚNICO sitio de la API donde un admin ve el dorsal de otro. No se registra en logs."""
+def nuevo_pin_para(uid):
+    """El PIN no se puede consultar (solo guardamos su hash). Si alguien lo olvida, el admin
+    genera uno nuevo, se lo pasa por WhatsApp y las sesiones antiguas de ese jugador se cierran."""
     u = usuario_o_404(uid)
-    return jsonify(id=u.id, mote=u.mote, dorsal=u.dorsal)
+    pin = regenerar_pin(u)
+    db.session.commit()
+    return jsonify(id=u.id, mote=u.mote, pin=pin)
 
 
 # ------------------------------------------------------------ goles por confirmar

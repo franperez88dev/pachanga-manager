@@ -1,10 +1,11 @@
-"""Nadie ve dorsales ajenos ni valoraciones (ni estrellas ni medias), tampoco el admin
-salvo el dorsal en su endpoint específico."""
+"""Nadie ve el PIN de nadie ni valoraciones (ni estrellas ni medias), tampoco el admin.
+El PIN solo aparece al registrarse (al propio usuario) y cuando un admin genera uno nuevo.
+El dorsal es público (es el número de la camiseta)."""
 import json
 
 import pytest
 
-PALABRAS_PROHIBIDAS = ("dorsal", "stars", "estrellas", "media", "rating", "valoracion")
+PALABRAS_PROHIBIDAS = ("pin", "hash", "stars", "estrellas", "media", "rating", "valoracion")
 
 
 def claves(obj):
@@ -26,13 +27,17 @@ def assert_sin_datos_secretos(respuesta):
 
 @pytest.fixture
 def peña_con_valoraciones(client, admin, plantilla, partido_con_equipos):
-    # Todos valoran a todos (menos a sí mismos)
+    """Todos valoran a todos, se rebaraja, se cierra el partido y hay un reporte pendiente."""
     for j in plantilla:
         for otro in plantilla:
             if otro.id != j.id:
                 client.post("/api/valoraciones", json={"valorado_id": otro.id, "estrellas": 4}, headers=j.headers)
     pid = partido_con_equipos
     client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True}, headers=admin.headers)
+    client.post(f"/api/partidos/{pid}/cerrar", json={"goles_blanco": 1, "goles_negro": 0}, headers=admin.headers)
+    r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 1, "asistencias": 0},
+                    headers=plantilla[0].headers)
+    assert r.status_code == 201
     return pid
 
 
@@ -42,42 +47,31 @@ def rutas_de_consulta(pid, uid):
             "/api/valoraciones/mias", "/api/reportes/mios"]
 
 
-def test_ninguna_consulta_de_jugador_devuelve_dorsales_ni_valoraciones(client, plantilla, peña_con_valoraciones):
+def test_ninguna_consulta_de_jugador_devuelve_pines_ni_valoraciones(client, plantilla, peña_con_valoraciones):
     jugador = plantilla[0]
     for ruta in rutas_de_consulta(peña_con_valoraciones, plantilla[1].id):
         assert_sin_datos_secretos(client.get(ruta, headers=jugador.headers))
 
 
-def test_ni_siquiera_el_admin_ve_valoraciones_ni_dorsales_fuera_de_su_endpoint(client, admin, plantilla,
-                                                                                peña_con_valoraciones):
+def test_ni_siquiera_el_admin_ve_pines_ni_valoraciones(client, admin, plantilla, peña_con_valoraciones):
     pid = peña_con_valoraciones
-    rutas = rutas_de_consulta(pid, plantilla[1].id) + ["/api/admin/altas", "/api/admin/usuarios",
-                                                       "/api/admin/reportes"]
+    rutas = rutas_de_consulta(pid, plantilla[1].id) + [
+        "/api/admin/altas", "/api/admin/usuarios", "/api/admin/reportes", f"/api/partidos/{pid}/estadisticas"]
     for ruta in rutas:
         assert_sin_datos_secretos(client.get(ruta, headers=admin.headers))
 
 
-def test_los_valores_de_los_dorsales_no_aparecen_en_las_respuestas(client, plantilla, peña_con_valoraciones):
-    """Además de las claves, comprobamos que ningún número de dorsal se cuele con otro nombre.
-    Los dorsales de la plantilla van del 2 al 13 (el admin es el 1), así que buscamos
-    los dorsales como valores de campos que no sean ids."""
-    jugador = plantilla[0]
-    for ruta in rutas_de_consulta(peña_con_valoraciones, plantilla[1].id):
-        texto = json.dumps(client.get(ruta, headers=jugador.headers).get_json())
-        assert '"dorsal"' not in texto
-
-
-def test_el_registro_devuelve_el_dorsal_solo_al_propio_usuario(client):
+def test_el_pin_solo_se_ve_al_registrarse(client):
     r = client.post("/api/auth/registro", json={"mote": "Nuevo"})
-    assert "dorsal" in r.get_json()
-    login = client.post("/api/auth/login", json={"mote": "Nuevo", "dorsal": str(r.get_json()["dorsal"])})
-    assert "dorsal" not in json.dumps(login.get_json())
+    pin = r.get_json()["pin"]
+    login = client.post("/api/auth/login", json={"mote": "Nuevo", "pin": pin})
+    assert login.status_code == 200
+    assert '"pin"' not in json.dumps(login.get_json())
 
 
-def test_admin_consulta_dorsal_olvidado(client, admin, plantilla):
-    r = client.get(f"/api/admin/usuarios/{plantilla[3].id}/dorsal", headers=admin.headers)
-    assert r.status_code == 200
-    assert r.get_json()["dorsal"] == plantilla[3].dorsal
+def test_el_dorsal_es_publico(client, plantilla):
+    jugadores = client.get("/api/jugadores", headers=plantilla[0].headers).get_json()["jugadores"]
+    assert {j["mote"]: j["dorsal"] for j in jugadores}["Chuti"] == plantilla[1].dorsal
 
 
 def test_equipos_muestran_solo_fuerza_total(client, plantilla, peña_con_valoraciones):
@@ -87,8 +81,7 @@ def test_equipos_muestran_solo_fuerza_total(client, plantilla, peña_con_valorac
     for color in ("blanco", "negro"):
         assert set(equipos[color]) == {"color", "nombre", "fuerza", "jugadores"}
         for j in equipos[color]["jugadores"]:
-            assert set(j) == {"id", "mote", "nombre_real", "es_admin"}
-
+            assert set(j) == {"id", "mote", "nombre_real", "dorsal", "es_admin"}
 
 # ------------------------------------------------------------ reglas de las valoraciones
 def test_valoracion_una_sola_vez_y_sin_poder_verla(client, plantilla):

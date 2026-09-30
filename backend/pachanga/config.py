@@ -40,8 +40,10 @@ def cargar_config():
         # Detrás del proxy del hosting, la IP real del cliente llega en X-Forwarded-For
         "CONFIAR_EN_PROXY": _booleano("CONFIAR_EN_PROXY"),
 
-        # --- Sesión ---
+        # --- Sesión y PIN ---
         "TOKEN_DIAS": _entero("TOKEN_DIAS", 90),
+        # Algoritmo del hash del PIN (scrypt: lento a propósito). Los tests usan uno rápido.
+        "PIN_HASH_METODO": os.environ.get("PIN_HASH_METODO", "scrypt"),
 
         # --- Bloqueo de login (ver seguridad.py) ---
         "LOGIN_MAX_INTENTOS_MOTE": _entero("LOGIN_MAX_INTENTOS_MOTE", 5),

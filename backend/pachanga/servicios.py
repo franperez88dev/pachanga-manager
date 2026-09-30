@@ -2,15 +2,16 @@
 import re
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from .equipos import medias_con_provisional
 from .errores import ErrorApi
 from .extensions import db
 from .models import (
-    ESTADO_APROBADO, PARTIDO_CERRADO, REPORTE_CONFIRMADO, ROL_ADMIN,
-    Contador, Match, MatchPlayer, Rating, StatReport, User,
+    EQUIPO_BLANCO, EQUIPO_NEGRO, ESTADO_APROBADO, PARTIDO_CERRADO, REPORTE_CONFIRMADO,
+    ROL_ADMIN, Match, MatchPlayer, Rating, StatReport, User,
 )
-from .seguridad import normalizar_mote
+from .seguridad import hash_pin, normalizar_mote, nuevo_pin
 
 # Letras (con tildes y ñ), números, espacios, punto, guion y apóstrofo
 _PATRON_MOTE = re.compile(r"^[\w .'-]{2,20}$")
@@ -30,41 +31,67 @@ def validar_nombre_real(nombre):
     return nombre or None
 
 
-def siguiente_dorsal():
-    """Avanza el contador de dorsales. En PostgreSQL, with_for_update bloquea la fila
-    para que dos altas simultáneas no se lleven el mismo número."""
-    contador = db.session.get(Contador, "dorsal", with_for_update=True)
-    if contador is None:
-        contador = Contador(nombre="dorsal", valor=0)
-        db.session.add(contador)
-    contador.valor += 1
-    db.session.flush()
-    return contador.valor
+def dorsal_libre():
+    """El dorsal libre más bajo. Si se borra la cuenta del 04, el siguiente que llegue se lo queda."""
+    ocupados = {d for (d,) in db.session.query(User.dorsal)}
+    dorsal = 1
+    while dorsal in ocupados:
+        dorsal += 1
+    return dorsal
+
+
+def _mote_cogido(normalizado):
+    return User.query.filter_by(mote_normalizado=normalizado).first() is not None
 
 
 def crear_usuario(mote, nombre_real=None, rol="jugador", estado="pendiente"):
+    """Crea el usuario con el dorsal libre más bajo y un PIN nuevo.
+    Devuelve (usuario, pin): el PIN en claro solo existe en este momento."""
     mote = validar_mote(mote)
     normalizado = normalizar_mote(mote)
-    if User.query.filter_by(mote_normalizado=normalizado).first():
+    nombre_real = validar_nombre_real(nombre_real)
+    if _mote_cogido(normalizado):
         raise ErrorApi(409, "Ese mote ya está cogido. Prueba con otro")
-    usuario = User(
-        mote=mote, mote_normalizado=normalizado, nombre_real=validar_nombre_real(nombre_real),
-        dorsal=siguiente_dorsal(), rol=rol, estado=estado,
-    )
-    db.session.add(usuario)
-    db.session.flush()
-    return usuario
+
+    pin = nuevo_pin()
+    # Si dos personas se registran a la vez, las dos pueden calcular el mismo dorsal libre:
+    # la restricción UNIQUE salta en la segunda, y esta reintenta con el siguiente.
+    for _ in range(5):
+        usuario = User(mote=mote, mote_normalizado=normalizado, nombre_real=nombre_real,
+                       dorsal=dorsal_libre(), pin_hash=hash_pin(pin), rol=rol, estado=estado)
+        try:
+            with db.session.begin_nested():  # "punto de guardado": si falla, solo se deshace esto
+                db.session.add(usuario)
+        except IntegrityError:
+            if _mote_cogido(normalizado):
+                raise ErrorApi(409, "Ese mote ya está cogido. Prueba con otro")
+            continue
+        return usuario, pin
+    raise ErrorApi(409, "Hay mucha gente registrándose a la vez. Vuelve a intentarlo")
+
+
+def regenerar_pin(usuario):
+    """PIN nuevo (para quien lo olvidó). Cierra sus sesiones abiertas en otros móviles."""
+    pin = nuevo_pin()
+    usuario.pin_hash = hash_pin(pin)
+    usuario.version_token += 1
+    return pin
 
 
 def numero_admins():
     return User.query.filter_by(rol=ROL_ADMIN, estado=ESTADO_APROBADO).count()
 
 
+def stats_a_cero():
+    return {"goles": 0, "asistencias": 0, "gpp": 0, "partidos": 0}
+
+
 def estadisticas(ids=None):
-    """{user_id: {"goles", "asistencias", "partidos"}} contando SOLO reportes
+    """{user_id: {"goles", "asistencias", "gpp", "partidos"}} contando SOLO reportes
     confirmados y partidos cerrados."""
-    goles = (
-        db.session.query(StatReport.user_id, func.sum(StatReport.goles), func.sum(StatReport.asistencias))
+    sumas = (
+        db.session.query(StatReport.user_id, func.sum(StatReport.goles),
+                         func.sum(StatReport.asistencias), func.sum(StatReport.gpp))
         .join(Match, Match.id == StatReport.match_id)
         .filter(StatReport.estado == REPORTE_CONFIRMADO, Match.estado == PARTIDO_CERRADO)
         .group_by(StatReport.user_id)
@@ -76,18 +103,50 @@ def estadisticas(ids=None):
         .group_by(MatchPlayer.user_id)
     )
     if ids is not None:
-        goles = goles.filter(StatReport.user_id.in_(ids))
+        sumas = sumas.filter(StatReport.user_id.in_(ids))
         partidos = partidos.filter(MatchPlayer.user_id.in_(ids))
 
     datos = {}
-    for uid, g, a in goles:
-        datos.setdefault(uid, {"goles": 0, "asistencias": 0, "partidos": 0})
-        datos[uid]["goles"] = int(g or 0)
-        datos[uid]["asistencias"] = int(a or 0)
+    for uid, g, a, p in sumas:
+        fila = datos.setdefault(uid, stats_a_cero())
+        fila.update(goles=int(g or 0), asistencias=int(a or 0), gpp=int(p or 0))
     for uid, n in partidos:
-        datos.setdefault(uid, {"goles": 0, "asistencias": 0, "partidos": 0})
-        datos[uid]["partidos"] = int(n)
+        datos.setdefault(uid, stats_a_cero())["partidos"] = int(n)
     return datos
+
+
+def avisos_marcador(partido, filas):
+    """Avisos (no bloquean) si los goles apuntados no cuadran con el resultado.
+
+    `filas`: {user_id: {"goles", "gpp", "asistencias"}} de los convocados.
+    Un gpp de un jugador del Blanco suma un gol al Negro, y al revés.
+    """
+    equipo_de = {mp.user_id: mp.equipo for mp in partido.jugadores}
+    rival = {EQUIPO_BLANCO: EQUIPO_NEGRO, EQUIPO_NEGRO: EQUIPO_BLANCO}
+    nombres = {EQUIPO_BLANCO: "el Blanco", EQUIPO_NEGRO: "el Negro"}
+    marcador = {EQUIPO_BLANCO: partido.goles_blanco, EQUIPO_NEGRO: partido.goles_negro}
+
+    goles_jugadores = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
+    goles_en_marcador = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
+    asistencias = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
+    for uid, fila in filas.items():
+        equipo = equipo_de.get(uid)
+        if equipo not in rival:
+            continue
+        goles_jugadores[equipo] += fila.get("goles", 0)
+        goles_en_marcador[equipo] += fila.get("goles", 0)
+        goles_en_marcador[rival[equipo]] += fila.get("gpp", 0)
+        asistencias[equipo] += fila.get("asistencias", 0)
+
+    avisos = []
+    for equipo in (EQUIPO_BLANCO, EQUIPO_NEGRO):
+        if marcador[equipo] is not None and goles_en_marcador[equipo] != marcador[equipo]:
+            avisos.append(f"Los goles de {nombres[equipo]} suman {goles_en_marcador[equipo]} "
+                          f"(contando gpp del rival), pero el resultado dice {marcador[equipo]}")
+        if asistencias[equipo] > goles_jugadores[equipo]:
+            avisos.append(f"{nombres[equipo].capitalize()} tiene más asistencias "
+                          f"({asistencias[equipo]}) que goles de sus jugadores ({goles_jugadores[equipo]})")
+    return avisos
 
 
 def fuerzas_de(ids):

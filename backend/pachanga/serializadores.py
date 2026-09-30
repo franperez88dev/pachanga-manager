@@ -1,8 +1,8 @@
 """Convierte modelos en diccionarios para las respuestas JSON.
 
-REGLA DE PRIVACIDAD: ninguna función de aquí incluye el dorsal ni valoraciones.
-El dorsal solo sale en la respuesta del registro (una vez, al propio usuario) y en
-GET /api/admin/usuarios/<id>/dorsal. Los tests de privacidad lo comprueban.
+REGLA DE PRIVACIDAD: ninguna función de aquí incluye el PIN (ni su hash) ni valoraciones.
+El PIN solo sale al registrarse (al propio usuario) y cuando un admin genera uno nuevo.
+Los tests de privacidad lo comprueban.
 """
 from .models import EQUIPO_BLANCO, EQUIPO_NEGRO
 
@@ -10,16 +10,17 @@ NOMBRES_EQUIPO = {EQUIPO_BLANCO: "Nevados C.F.", EQUIPO_NEGRO: "Sombras F.C."}
 
 
 def usuario_publico(u):
-    return {"id": u.id, "mote": u.mote, "nombre_real": u.nombre_real, "es_admin": u.es_admin}
+    return {"id": u.id, "mote": u.mote, "nombre_real": u.nombre_real, "dorsal": u.dorsal,
+            "es_admin": u.es_admin}
 
 
 def usuario_propio(u):
-    """Lo que ve cada uno de sí mismo (sin dorsal)."""
+    """Lo que ve cada uno de sí mismo."""
     return {**usuario_publico(u), "rol": u.rol, "estado": u.estado}
 
 
 def usuario_admin(u):
-    """Lo que ve un admin en su panel (tampoco lleva dorsal: tiene su propio endpoint)."""
+    """Lo que ve un admin en su panel."""
     return {**usuario_propio(u), "fecha_alta": u.fecha_alta.isoformat(timespec="seconds") + "Z"}
 
 
@@ -35,6 +36,9 @@ def partido_resumen(p, usuario):
         "lugar": p.lugar,
         "estado": p.estado,
         "equipos_generados": p.equipos_generados,
+        # null mientras el partido está abierto
+        "resultado": ({"blanco": p.goles_blanco, "negro": p.goles_negro}
+                      if p.goles_blanco is not None else None),
         "num_convocados": len(p.jugadores),
         "convocado": mio is not None,
         "mi_equipo": mio.equipo if mio else None,
@@ -68,6 +72,7 @@ def reporte(r):
         "partido": {"id": r.partido.id, "fecha": fecha_partido(r.partido.fecha), "lugar": r.partido.lugar},
         "jugador": usuario_publico(r.usuario),
         "goles": r.goles,
+        "gpp": r.gpp,
         "asistencias": r.asistencias,
         "estado": r.estado,
         "fecha": r.fecha.isoformat(timespec="seconds") + "Z",

@@ -23,20 +23,20 @@ def registro():
     if espera:
         raise error_demasiados_intentos(espera)
 
-    usuario = crear_usuario(datos.get("mote"), datos.get("nombre_real"))
+    usuario, pin = crear_usuario(datos.get("mote"), datos.get("nombre_real"))
     sumar_intento(clave_ip, current_app.config["REGISTRO_MAX_POR_IP_HORA"], 60)
     db.session.commit()
-    # ÚNICA respuesta de toda la API que devuelve el dorsal a un jugador: la suya, una vez
-    return jsonify(dorsal=usuario.dorsal, token=crear_token(usuario), usuario=usuario_propio(usuario)), 201
+    # Única vez que el jugador recibe su PIN: la app se lo enseña en grande para que lo apunte
+    return jsonify(pin=pin, token=crear_token(usuario), usuario=usuario_propio(usuario)), 201
 
 
 @bp.post("/auth/login")
 def login():
     datos = cuerpo_json()
-    mote, dorsal = str(datos.get("mote") or ""), str(datos.get("dorsal") or "")
-    if not mote.strip() or not dorsal.strip():
-        raise ErrorApi(400, "Escribe tu mote y tu dorsal")
-    usuario = verificar_credenciales(mote, dorsal)
+    mote, pin = str(datos.get("mote") or ""), str(datos.get("pin") or "")
+    if not mote.strip() or not pin.strip():
+        raise ErrorApi(400, "Escribe tu mote y tu PIN")
+    usuario = verificar_credenciales(mote, pin)
     return jsonify(token=crear_token(usuario), usuario=usuario_propio(usuario))
 
 

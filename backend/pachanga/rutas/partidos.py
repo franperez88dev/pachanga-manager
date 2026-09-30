@@ -1,4 +1,13 @@
-"""Partidos: consulta (todos) y gestión: convocatoria, equipos y cierre (solo admin)."""
+"""Partidos.
+
+Ciclo de vida de un partido:
+  1. (admin) Crear -> convocar 10 -> hacer equipos (Rebarajar / Volver a elegir).
+  2. (admin) Cerrar indicando el resultado. Desde aquí cuenta como partido jugado.
+  3. Goles, gpp y asistencias, por uno de dos caminos (o una mezcla):
+     a) El admin rellena la planilla en ese momento: queda todo confirmado.
+     b) El admin pulsa "Sig." y cada convocado apunta lo suyo desde su móvil;
+        el admin lo confirma o lo descarta cuando pueda.
+"""
 from datetime import datetime
 
 from flask import Blueprint, current_app, g, jsonify
@@ -7,15 +16,19 @@ from ..equipos import JUGADORES_POR_PARTIDO, elegir_reparto
 from ..errores import ErrorApi
 from ..extensions import db
 from ..models import (
-    EQUIPO_BLANCO, EQUIPO_NEGRO, PARTIDO_ABIERTO, PARTIDO_CERRADO,
-    REPORTE_CONFIRMADO, REPORTE_PENDIENTE, Match, MatchPlayer, StatReport, User,
+    EQUIPO_BLANCO, EQUIPO_NEGRO, PARTIDO_ABIERTO, PARTIDO_CERRADO, REPORTE_CONFIRMADO,
+    REPORTE_PENDIENTE, REPORTES_ACTIVOS, Match, MatchPlayer, StatReport, User,
 )
-from ..serializadores import partido_detalle, partido_resumen, reporte
+from ..serializadores import partido_detalle, partido_resumen, reporte, usuario_publico
 from ..seguridad import requiere_admin, requiere_aprobado
-from ..servicios import deshacer_equipos, fuerzas_de
+from ..servicios import avisos_marcador, deshacer_equipos, fuerzas_de
 from . import cuerpo_json, entero
 
 bp = Blueprint("partidos", __name__, url_prefix="/api/partidos")
+
+MAX_GOLES_JUGADOR = 30
+MAX_GOLES_EQUIPO = 99
+CAMPOS_STATS = ("goles", "gpp", "asistencias")
 
 
 def partido_o_404(pid):
@@ -30,11 +43,9 @@ def exigir_abierto(partido):
         raise ErrorApi(409, "El partido está cerrado y ya no se puede modificar")
 
 
-def hay_reportes_activos(partido):
-    return StatReport.query.filter(
-        StatReport.match_id == partido.id,
-        StatReport.estado.in_([REPORTE_PENDIENTE, REPORTE_CONFIRMADO]),
-    ).count() > 0
+def exigir_cerrado(partido):
+    if partido.abierto:
+        raise ErrorApi(409, "Los goles y asistencias se apuntan cuando el partido está cerrado")
 
 
 def leer_fecha_y_lugar(datos, parcial=False):
@@ -42,7 +53,8 @@ def leer_fecha_y_lugar(datos, parcial=False):
     cambios = {}
     if "fecha" in datos or not parcial:
         try:
-            cambios["fecha"] = datetime.fromisoformat(str(datos.get("fecha", ""))).replace(tzinfo=None, second=0, microsecond=0)
+            cambios["fecha"] = datetime.fromisoformat(str(datos.get("fecha", ""))).replace(
+                tzinfo=None, second=0, microsecond=0)
         except ValueError:
             raise ErrorApi(400, "Fecha no válida. Formato: 2026-10-04T19:00")
     if "lugar" in datos or not parcial:
@@ -51,6 +63,12 @@ def leer_fecha_y_lugar(datos, parcial=False):
             raise ErrorApi(400, "Escribe el lugar (máximo 80 caracteres)")
         cambios["lugar"] = lugar
     return cambios
+
+
+def leer_resultado(partido):
+    datos = cuerpo_json()
+    partido.goles_blanco = entero(datos, "goles_blanco", 0, MAX_GOLES_EQUIPO)
+    partido.goles_negro = entero(datos, "goles_negro", 0, MAX_GOLES_EQUIPO)
 
 
 # ------------------------------------------------------------ consulta (jugadores)
@@ -75,7 +93,7 @@ def detalle(pid):
     return jsonify(partido=partido_detalle(partido_o_404(pid), g.usuario))
 
 
-# ------------------------------------------------------------ gestión (admin)
+# ------------------------------------------------------------ antes del partido (admin)
 @bp.post("")
 @requiere_admin
 def crear():
@@ -100,10 +118,7 @@ def editar(pid):
 @requiere_admin
 def borrar(pid):
     partido = partido_o_404(pid)
-    exigir_abierto(partido)
-    if hay_reportes_activos(partido):
-        raise ErrorApi(409, "Ya hay goles apuntados en este partido; descártalos antes de borrarlo")
-    StatReport.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
+    exigir_abierto(partido)  # un partido abierto aún no tiene goles apuntados
     db.session.delete(partido)
     db.session.commit()
     return "", 204
@@ -124,8 +139,6 @@ def convocatoria(pid):
     usuarios = User.query.filter(User.id.in_(ids)).all()
     if len(usuarios) != len(ids) or not all(u.aprobado for u in usuarios):
         raise ErrorApi(400, "Todos los convocados deben ser jugadores aprobados")
-    if hay_reportes_activos(partido):
-        raise ErrorApi(409, "Ya hay goles apuntados en este partido; no se puede cambiar la convocatoria")
 
     partido.jugadores.clear()
     db.session.flush()
@@ -144,8 +157,6 @@ def crear_equipos(pid):
     exigir_abierto(partido)
     if len(partido.jugadores) != JUGADORES_POR_PARTIDO:
         raise ErrorApi(409, f"Primero convoca a {JUGADORES_POR_PARTIDO} jugadores")
-    if hay_reportes_activos(partido):
-        raise ErrorApi(409, "Ya hay goles apuntados en este partido; no se pueden rehacer los equipos")
 
     anterior = None
     if cuerpo_json().get("rebarajar") is True and partido.equipos_generados:
@@ -173,49 +184,127 @@ def quitar_equipos(pid):
     """Botón "Volver a elegir": se deshacen los equipos y se mantiene la convocatoria."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
-    if hay_reportes_activos(partido):
-        raise ErrorApi(409, "Ya hay goles apuntados en este partido; no se pueden deshacer los equipos")
     deshacer_equipos(partido)
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
 
 
+# ------------------------------------------------------------ después del partido (admin)
 @bp.post("/<int:pid>/cerrar")
 @requiere_admin
 def cerrar(pid):
+    """Recibe {"goles_blanco": 5, "goles_negro": 3}."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
     if not partido.equipos_generados:
         raise ErrorApi(409, "No se puede cerrar un partido sin equipos")
+    leer_resultado(partido)
     partido.estado = PARTIDO_CERRADO
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
 
 
-# ------------------------------------------------------------ reportar goles (convocados)
+@bp.put("/<int:pid>/resultado")
+@requiere_admin
+def corregir_resultado(pid):
+    """Por si el admin se equivocó al poner el resultado."""
+    partido = partido_o_404(pid)
+    exigir_cerrado(partido)
+    leer_resultado(partido)
+    db.session.commit()
+    return jsonify(partido=partido_detalle(partido, g.usuario))
+
+
+def planilla(partido):
+    """Estado de los goles de cada convocado: lo confirmado y lo que tenga pendiente."""
+    reportes = StatReport.query.filter(
+        StatReport.match_id == partido.id, StatReport.estado.in_(REPORTES_ACTIVOS)).all()
+    confirmados, pendientes = {}, {}
+    for r in reportes:
+        destino = confirmados if r.estado == REPORTE_CONFIRMADO else pendientes
+        fila = destino.setdefault(r.user_id, {c: 0 for c in CAMPOS_STATS})
+        for c in CAMPOS_STATS:
+            fila[c] += getattr(r, c)
+
+    cero = {c: 0 for c in CAMPOS_STATS}
+    orden = sorted(partido.jugadores, key=lambda mp: (mp.equipo != EQUIPO_BLANCO, mp.usuario.mote.casefold()))
+    jugadores = [
+        {**usuario_publico(mp.usuario), "equipo": mp.equipo,
+         **confirmados.get(mp.user_id, cero), "pendiente": pendientes.get(mp.user_id)}
+        for mp in orden
+    ]
+    return {
+        "resultado": {"blanco": partido.goles_blanco, "negro": partido.goles_negro},
+        "jugadores": jugadores,
+        "avisos": avisos_marcador(partido, confirmados),
+    }
+
+
+@bp.get("/<int:pid>/estadisticas")
+@requiere_admin
+def ver_planilla(pid):
+    partido = partido_o_404(pid)
+    exigir_cerrado(partido)
+    return jsonify(planilla(partido))
+
+
+@bp.put("/<int:pid>/estadisticas")
+@requiere_admin
+def guardar_planilla(pid):
+    """El admin apunta goles, gpp y asistencias de todos a la vez:
+    {"jugadores": [{"id": 3, "goles": 2, "gpp": 0, "asistencias": 1}, ...]}
+
+    La planilla es la versión definitiva del partido: sustituye a todo lo apuntado
+    antes (incluidos los reportes pendientes de los jugadores; la app los muestra
+    ya sumados en la planilla para que el admin los tenga en cuenta).
+    Los convocados que no aparezcan cuentan como 0. Si no cuadra con el resultado,
+    se guarda igualmente y se devuelven avisos."""
+    partido = partido_o_404(pid)
+    exigir_cerrado(partido)
+    filas = cuerpo_json().get("jugadores")
+    if not isinstance(filas, list) or not all(isinstance(f, dict) for f in filas):
+        raise ErrorApi(400, "'jugadores' debe ser una lista")
+
+    convocados = {mp.user_id for mp in partido.jugadores}
+    datos = {}
+    for fila in filas:
+        uid = fila.get("id")
+        if isinstance(uid, bool) or uid not in convocados or uid in datos:
+            raise ErrorApi(400, "Cada jugador de la planilla debe ser un convocado distinto")
+        datos[uid] = {c: entero(fila, c, 0, MAX_GOLES_JUGADOR) for c in CAMPOS_STATS}
+
+    StatReport.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
+    for uid, valores in datos.items():
+        if any(valores.values()):
+            db.session.add(StatReport(match_id=partido.id, user_id=uid, estado=REPORTE_CONFIRMADO, **valores))
+    db.session.commit()
+    return jsonify(planilla(partido))
+
+
+# ------------------------------------------------------------ después del partido (jugadores)
 @bp.post("/<int:pid>/reportes")
 @requiere_aprobado
 def reportar(pid):
+    """Un convocado apunta sus goles, gpp y asistencias; queda pendiente del admin."""
     partido = partido_o_404(pid)
-    convocado = any(mp.user_id == g.usuario.id for mp in partido.jugadores)
-    if not convocado:
+    if not any(mp.user_id == g.usuario.id for mp in partido.jugadores):
         raise ErrorApi(403, "Solo los convocados pueden apuntar goles en este partido")
-    if not partido.equipos_generados:
-        raise ErrorApi(409, "Todavía no hay equipos para este partido")
+    exigir_cerrado(partido)
     datos = cuerpo_json()
-    goles = entero(datos, "goles", 0, 30)
-    asistencias = entero(datos, "asistencias", 0, 30)
-    if goles == 0 and asistencias == 0:
-        raise ErrorApi(400, "Apunta al menos un gol o una asistencia")
+    datos.setdefault("gpp", 0)
+    valores = {c: entero(datos, c, 0, MAX_GOLES_JUGADOR) for c in CAMPOS_STATS}
+    if not any(valores.values()):
+        raise ErrorApi(400, "Apunta al menos un gol, un gpp o una asistencia")
     ya = StatReport.query.filter(
         StatReport.match_id == partido.id,
         StatReport.user_id == g.usuario.id,
-        StatReport.estado.in_([REPORTE_PENDIENTE, REPORTE_CONFIRMADO]),
+        StatReport.estado.in_(REPORTES_ACTIVOS),
     ).first()
     if ya:
-        raise ErrorApi(409, "Ya apuntaste tus datos de este partido. Anula el pendiente si te equivocaste")
+        raise ErrorApi(409, "Ya tienes datos apuntados en este partido. Si te equivocaste, "
+                            "anula el pendiente o díselo al admin")
 
-    r = StatReport(match_id=partido.id, user_id=g.usuario.id, goles=goles, asistencias=asistencias)
+    r = StatReport(match_id=partido.id, user_id=g.usuario.id, estado=REPORTE_PENDIENTE, **valores)
     db.session.add(r)
     db.session.commit()
     return jsonify(reporte=reporte(r)), 201

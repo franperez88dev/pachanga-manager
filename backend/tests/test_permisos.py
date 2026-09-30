@@ -8,7 +8,7 @@ ACCIONES_ADMIN = [
     ("post", "/api/admin/usuarios/{uid}/rechazar"),
     ("get", "/api/admin/usuarios"),
     ("put", "/api/admin/usuarios/{uid}/rol"),
-    ("get", "/api/admin/usuarios/{uid}/dorsal"),
+    ("post", "/api/admin/usuarios/{uid}/pin"),
     ("get", "/api/admin/reportes"),
     ("post", "/api/admin/reportes/{rid}/confirmar"),
     ("post", "/api/admin/reportes/{rid}/descartar"),
@@ -19,13 +19,27 @@ ACCIONES_ADMIN = [
     ("post", "/api/partidos/{pid}/equipos"),
     ("delete", "/api/partidos/{pid}/equipos"),
     ("post", "/api/partidos/{pid}/cerrar"),
+    ("put", "/api/partidos/{pid}/resultado"),
+    ("get", "/api/partidos/{pid}/estadisticas"),
+    ("put", "/api/partidos/{pid}/estadisticas"),
 ]
 
 
+def test_la_lista_incluye_todas_las_rutas_de_admin(app):
+    """Si alguien añade un endpoint de admin y no lo mete en ACCIONES_ADMIN, este test falla."""
+    en_la_app = set()
+    for regla in app.url_map.iter_rules():
+        if getattr(app.view_functions[regla.endpoint], "solo_admin", False):
+            for metodo in regla.methods - {"HEAD", "OPTIONS"}:
+                ruta = regla.rule.replace("<int:pid>", "{pid}").replace("<int:uid>", "{uid}")
+                en_la_app.add((metodo.lower(), ruta.replace("<int:rid>", "{rid}")))
+    assert en_la_app == set(ACCIONES_ADMIN)
+
+
 @pytest.fixture
-def escenario(client, admin, plantilla, partido_con_equipos):
-    """Un partido con equipos y un reporte pendiente de un convocado."""
-    pid = partido_con_equipos
+def escenario(client, admin, plantilla, partido_cerrado):
+    """Un partido cerrado y un reporte pendiente de un convocado."""
+    pid = partido_cerrado
     autor = plantilla[0]
     r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 2, "asistencias": 1}, headers=autor.headers)
     assert r.status_code == 201

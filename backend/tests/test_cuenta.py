@@ -3,12 +3,12 @@ from pachanga.extensions import db
 from pachanga.models import MatchPlayer, Rating, StatReport, User
 
 
-def test_borrado_desde_la_api_elimina_todos_sus_datos(client, admin, plantilla, partido_con_equipos):
+def test_borrado_desde_la_api_elimina_todos_sus_datos(client, admin, plantilla, partido_cerrado):
     j, otro = plantilla[0], plantilla[1]
     client.post("/api/valoraciones", json={"valorado_id": otro.id, "estrellas": 5}, headers=j.headers)
     client.post("/api/valoraciones", json={"valorado_id": j.id, "estrellas": 2}, headers=otro.headers)
-    client.post(f"/api/partidos/{partido_con_equipos}/reportes", json={"goles": 1, "asistencias": 0},
-                headers=j.headers)
+    assert client.post(f"/api/partidos/{partido_cerrado}/reportes", json={"goles": 1, "asistencias": 0},
+                       headers=j.headers).status_code == 201
 
     assert client.delete("/api/yo", json={}, headers=j.headers).status_code == 400  # falta confirmar
     assert client.delete("/api/yo", json={"confirmar": True}, headers=j.headers).status_code == 204
@@ -31,16 +31,16 @@ def test_pagina_web_de_borrado(client, nuevo):
     j = nuevo("Feragi")
     assert client.get("/borrar-cuenta").status_code == 200
     # Sin marcar la casilla no borra
-    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "dorsal": str(j.dorsal)})
+    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "pin": j.pin})
     assert r.status_code == 400 and db.session.get(User, j.id) is not None
-    # Dorsal incorrecto: mismo mensaje genérico que en el login
-    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "dorsal": "999", "confirmar": "si"})
+    # PIN incorrecto: mismo mensaje genérico que en el login
+    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "pin": f"{(int(j.pin) + 1) % 10000:04d}", "confirmar": "si"})
     assert r.status_code == 401 and db.session.get(User, j.id) is not None
-    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "dorsal": str(j.dorsal), "confirmar": "si"})
+    r = client.post("/borrar-cuenta", data={"mote": "Feragi", "pin": j.pin, "confirmar": "si"})
     assert r.status_code == 200 and "se han borrado" in r.get_data(as_text=True)
     assert db.session.get(User, j.id) is None
 
 
 def test_pagina_web_escapa_html(client):
-    r = client.post("/borrar-cuenta", data={"mote": "<b>x</b>", "dorsal": "1", "confirmar": "si"})
+    r = client.post("/borrar-cuenta", data={"mote": "<b>x</b>", "pin": "1234", "confirmar": "si"})
     assert "<b>x</b>" not in r.get_data(as_text=True)

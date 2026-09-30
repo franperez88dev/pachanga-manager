@@ -12,7 +12,7 @@ ROL_JUGADOR = "jugador"
 
 ESTADO_PENDIENTE = "pendiente"
 ESTADO_APROBADO = "aprobado"
-ESTADO_RECHAZADO = "rechazado"
+# (un alta rechazada se borra: así su mote y su dorsal quedan libres)
 
 PARTIDO_ABIERTO = "abierto"
 PARTIDO_CERRADO = "cerrado"
@@ -24,18 +24,11 @@ REPORTE_PENDIENTE = "pendiente"
 REPORTE_CONFIRMADO = "confirmado"
 REPORTE_DESCARTADO = "descartado"
 REPORTE_ANULADO = "anulado"
+REPORTES_ACTIVOS = (REPORTE_PENDIENTE, REPORTE_CONFIRMADO)
 
 
 def ahora():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-class Contador(db.Model):
-    """Contadores que solo avanzan. El de dorsales garantiza que un dorsal
-    nunca se reutiliza, aunque se rechace un alta o se borre una cuenta."""
-    __tablename__ = "contadores"
-    nombre = db.Column(db.String(40), primary_key=True)
-    valor = db.Column(db.Integer, nullable=False, default=0)
 
 
 class User(db.Model):
@@ -46,7 +39,10 @@ class User(db.Model):
     # Mote en minúsculas: la restricción UNIQUE va aquí para no distinguir mayúsculas
     mote_normalizado = db.Column(db.String(20), nullable=False, unique=True, index=True)
     nombre_real = db.Column(db.String(60))
+    # Dorsal público (el número de la camiseta). Al borrar una cuenta queda libre y se reutiliza.
     dorsal = db.Column(db.Integer, nullable=False, unique=True)
+    # La clave para entrar es un PIN de 4 cifras. Solo guardamos su hash, nunca el PIN.
+    pin_hash = db.Column(db.String(255), nullable=False)
     rol = db.Column(db.String(10), nullable=False, default=ROL_JUGADOR)
     estado = db.Column(db.String(10), nullable=False, default=ESTADO_PENDIENTE)
     fecha_alta = db.Column(db.DateTime, nullable=False, default=ahora)
@@ -73,6 +69,9 @@ class Match(db.Model):
     # Fuerza total de cada equipo en el momento de crearlos (lo único que se enseña)
     fuerza_blanco = db.Column(db.Float)
     fuerza_negro = db.Column(db.Float)
+    # Resultado final: lo pone el admin al cerrar el partido
+    goles_blanco = db.Column(db.Integer)
+    goles_negro = db.Column(db.Integer)
     creado = db.Column(db.DateTime, nullable=False, default=ahora)
 
     jugadores = db.relationship("MatchPlayer", back_populates="partido", cascade="all, delete-orphan")
@@ -115,6 +114,7 @@ class StatReport(db.Model):
     match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     goles = db.Column(db.Integer, nullable=False, default=0)
+    gpp = db.Column(db.Integer, nullable=False, default=0)  # goles en propia puerta: suman al rival
     asistencias = db.Column(db.Integer, nullable=False, default=0)
     estado = db.Column(db.String(12), nullable=False, default=REPORTE_PENDIENTE)
     fecha = db.Column(db.DateTime, nullable=False, default=ahora)
