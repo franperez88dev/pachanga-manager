@@ -49,7 +49,7 @@ def test_equipos_blanco_y_negro_con_nombres_y_fuerza(client, admin, plantilla, p
 
 def votar(client, jugadores, pid, cambiar=True):
     for j in jugadores:
-        r = client.put(f"/api/partidos/{pid}/voto", json={"cambiar": cambiar}, headers=j.headers)
+        r = client.post(f"/api/partidos/{pid}/voto", json={"cambiar": cambiar}, headers=j.headers)
         assert r.status_code == 200, r.get_json()
     return r.get_json()["partido"]["votacion"]
 
@@ -63,17 +63,32 @@ def test_crear_equipos_solo_una_vez(client, admin, partido_con_equipos):
     assert r.status_code == 409
 
 
-def test_rebarajar_exige_7_votos_a_favor(client, admin, plantilla, partido_con_equipos):
+def test_rebarajar_exige_6_votos_a_favor(client, admin, plantilla, partido_con_equipos):
     pid = partido_con_equipos
     convocados = plantilla[:10]
     assert rebarajar(client, admin, pid).status_code == 409  # sin votos
     votar(client, convocados[:4], pid, cambiar=False)
-    v = votar(client, convocados[4:10], pid, cambiar=True)  # 6 síes: "más de 6" no se cumple
-    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (6, 4, False)
+    v = votar(client, convocados[4:9], pid, cambiar=True)  # 5 síes: aún no
+    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (5, 4, False)
     assert rebarajar(client, admin, pid).status_code == 409
-    v = votar(client, convocados[:1], pid, cambiar=True)  # uno cambia de opinión: 7
-    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (7, 3, True)
+    v = votar(client, convocados[9:10], pid, cambiar=True)  # 6 síes frente a 4 noes: mayoría
+    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (6, 4, True)
     assert rebarajar(client, admin, pid).status_code == 200
+
+
+def test_se_vota_una_sola_vez_por_reparto(client, admin, plantilla, partido_con_equipos):
+    pid = partido_con_equipos
+    url = f"/api/partidos/{pid}/voto"
+    assert client.post(url, json={"cambiar": False}, headers=plantilla[0].headers).status_code == 200
+    # Ni repetir ni cambiar de opinión
+    assert client.post(url, json={"cambiar": True}, headers=plantilla[0].headers).status_code == 409
+    assert client.post(url, json={"cambiar": False}, headers=plantilla[0].headers).status_code == 409
+    v = client.get(f"/api/partidos/{pid}", headers=plantilla[0].headers).get_json()["partido"]["votacion"]
+    assert (v["votos_si"], v["votos_no"], v["mi_voto"]) == (0, 1, False)
+    # Tras un nuevo reparto, puede volver a votar
+    votar(client, plantilla[1:7], pid)
+    assert rebarajar(client, admin, pid).status_code == 200
+    assert client.post(url, json={"cambiar": True}, headers=plantilla[0].headers).status_code == 200
 
 
 def test_maximo_3_repartos_y_votacion_nueva_en_cada_uno(client, admin, plantilla, partido_con_equipos):
@@ -90,7 +105,7 @@ def test_maximo_3_repartos_y_votacion_nueva_en_cada_uno(client, admin, plantilla
 
     for numero in (2, 3):
         antes = reparto()
-        votar(client, convocados[:7], pid)
+        votar(client, convocados[:6], pid)
         r = rebarajar(client, admin, pid)
         assert r.status_code == 200
         assert reparto() != antes
@@ -98,22 +113,22 @@ def test_maximo_3_repartos_y_votacion_nueva_en_cada_uno(client, admin, plantilla
         assert v["repartos_hechos"] == numero and v["votos_si"] == 0  # los votos de antes ya no cuentan
 
     assert v["abierta"] is False
-    r = client.put(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=convocados[0].headers)
+    r = client.post(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=convocados[0].headers)
     assert r.status_code == 409
     assert rebarajar(client, admin, pid).status_code == 409
 
 
 def test_solo_votan_convocados_y_con_equipos(client, admin, plantilla, partido_con_equipos):
-    r = client.put(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": True},
+    r = client.post(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": True},
                    headers=plantilla[11].headers)
     assert r.status_code == 403
-    r = client.put(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": "si"},
+    r = client.post(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": "si"},
                    headers=plantilla[0].headers)
     assert r.status_code == 400
     sin_equipos = crear_partido(client, admin).get_json()["partido"]["id"]
     client.put(f"/api/partidos/{sin_equipos}/convocatoria", json={"jugadores": [j.id for j in plantilla[:10]]},
                headers=admin.headers)
-    assert client.put(f"/api/partidos/{sin_equipos}/voto", json={"cambiar": True},
+    assert client.post(f"/api/partidos/{sin_equipos}/voto", json={"cambiar": True},
                       headers=plantilla[0].headers).status_code == 409
 
 

@@ -2,7 +2,7 @@
 
 Ciclo de vida de un partido:
   1. (admin) Crear -> convocar 10 -> hacer equipos (una sola vez).
-     Los convocados votan si quieren otro reparto; con 7 síes el admin puede
+     Los convocados votan (una vez) si quieren otro reparto; con 6 síes el admin puede
      rebarajar, hasta 3 repartos en total. Cambiar a algún convocado empieza de cero.
   2. (admin) Cerrar indicando el resultado. Desde aquí cuenta como partido jugado.
   3. Goles, gpp y asistencias, por uno de dos caminos (o una mezcla):
@@ -14,6 +14,7 @@ import random
 from datetime import datetime
 
 from flask import Blueprint, current_app, g, jsonify
+from sqlalchemy.exc import IntegrityError
 
 from ..equipos import JUGADORES_POR_PARTIDO, elegir_reparto
 from ..errores import ErrorApi
@@ -173,7 +174,7 @@ def votos_si(partido):
 def crear_equipos(pid):
     """{"rebarajar": false} -> "Crear equipos": el reparto más igualado. Solo una vez.
     {"rebarajar": true}  -> otro reparto equilibrado distinto del actual. Solo si lo
-                            han votado (7 síes) y sin pasar de 3 repartos en total."""
+                            han votado (6 síes) y sin pasar de 3 repartos en total."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
     cfg = current_app.config
@@ -222,12 +223,13 @@ def sortear_posiciones(partido):
             mp.orden_porteria = turno
 
 
-@bp.put("/<int:pid>/voto")
+@bp.post("/<int:pid>/voto")
 @requiere_aprobado
 def votar(pid):
     """{"cambiar": true|false}: "¿Deseas una nueva selección de equipo?".
     Solo los convocados, con los equipos hechos y si aún quedan repartos.
-    Se puede cambiar el voto hasta que el admin rebaraje."""
+    Se vota UNA vez por reparto y no se puede cambiar; si el admin rebaraja,
+    empieza una votación nueva y cada uno puede votar otra vez."""
     partido = partido_o_404(pid)
     if not any(mp.user_id == g.usuario.id for mp in partido.jugadores):
         raise ErrorApi(403, "Solo votan los convocados de este partido")
@@ -240,12 +242,16 @@ def votar(pid):
     if not isinstance(cambiar, bool):
         raise ErrorApi(400, "'cambiar' debe ser true o false")
 
-    voto = db.session.get(VotoRebarajar, (partido.id, g.usuario.id, partido.num_repartos))
-    if voto is None:
-        voto = VotoRebarajar(match_id=partido.id, user_id=g.usuario.id, ronda=partido.num_repartos)
-        db.session.add(voto)
-    voto.cambiar = cambiar
-    db.session.commit()
+    ya_votado = "Ya has votado. Podrás volver a votar si el admin hace un nuevo reparto"
+    if db.session.get(VotoRebarajar, (partido.id, g.usuario.id, partido.num_repartos)):
+        raise ErrorApi(409, ya_votado)
+    db.session.add(VotoRebarajar(match_id=partido.id, user_id=g.usuario.id,
+                                 ronda=partido.num_repartos, cambiar=cambiar))
+    try:
+        db.session.commit()
+    except IntegrityError:  # dos toques casi a la vez: la clave primaria impide el voto doble
+        db.session.rollback()
+        raise ErrorApi(409, ya_votado)
     return jsonify(partido=partido_detalle(partido, g.usuario))
 
 

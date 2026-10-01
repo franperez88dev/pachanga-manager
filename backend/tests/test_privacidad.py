@@ -33,8 +33,8 @@ def peña_con_valoraciones(client, admin, plantilla, partido_con_equipos):
             if otro.id != j.id:
                 client.post("/api/valoraciones", json={"valorado_id": otro.id, "estrellas": 4}, headers=j.headers)
     pid = partido_con_equipos
-    for j in plantilla[:7]:
-        client.put(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=j.headers)
+    for j in plantilla[:6]:
+        client.post(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=j.headers)
     assert client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True},
                        headers=admin.headers).status_code == 200
     client.post(f"/api/partidos/{pid}/cerrar", json={"goles_blanco": 1, "goles_negro": 0}, headers=admin.headers)

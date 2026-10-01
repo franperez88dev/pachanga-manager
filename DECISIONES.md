@@ -29,7 +29,7 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 
 ## Avatares (01/10/2026)
 - Cada jugador elige su avatar al registrarse y puede cambiarlo cuando quiera desde su perfil.
-- **Personalizable**: color de piel, peinado + color, barba + color.
+- **Personalizable**: color de piel, peinado + color, barba + color (sin barba, bigote, perilla o completa; la "de 3 días" se quitó porque quedaba mal).
 - **Botón "Aleatorio"**, que se puede pulsar las veces que quiera; a veces sale un dibujo especial (alien, perro, gato, pepino, calabaza).
 - Si no elige nada, le toca uno al azar.
 - **El admin puede subir avatares nuevos** (PNG, JPEG o WebP de hasta 300 KB; SVG no, por seguridad). Al retirarlos desaparecen del catálogo, pero quien ya los tenga los conserva.
@@ -43,8 +43,8 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 
 ## Votación para rebarajar (01/10/2026; sustituye al "Rebarajar" libre)
 - El admin hace los equipos **una sola vez**.
-- Después, a cada convocado le aparece **"¿Deseas una nueva selección de equipo?" Sí / No**. Puede cambiar su voto hasta que se rebaraje. Solo se ven los totales; cada uno ve únicamente su propio voto.
-- Con **7 síes o más** ("más de 6") el admin puede rebarajar. El nuevo reparto sigue sin repetir el anterior.
+- Después, a cada convocado le aparece **"¿Deseas una nueva selección de equipo?" Sí / No**. **Se vota una sola vez y no se puede cambiar**; tras un nuevo reparto se vuelve a votar. Solo se ven los totales; cada uno ve únicamente su propio voto.
+- Con **6 síes o más** (6 contra 4 ya es mayoría) el admin puede rebarajar. El nuevo reparto sigue sin repetir el anterior.
 - **Máximo 3 repartos** en total (el inicial + 2 cambios). Cada reparto abre una votación nueva desde cero.
 - "Volver a elegir" solo sirve para **cambiar convocados**: con los mismos 10, los equipos se mantienen; si cambia alguien, se rehacen los equipos y la cuenta de repartos y votos empieza de cero.
 - Umbral y máximo configurables (`VOTOS_PARA_REBARAJAR`, `MAX_REPARTOS`).

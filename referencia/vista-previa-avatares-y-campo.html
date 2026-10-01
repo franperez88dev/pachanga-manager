@@ -105,6 +105,7 @@
   .etiqueta-vista{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--gold);
     border:1px solid var(--gold);border-radius:100px;padding:2px 8px;margin-bottom:8px}
   .btn:disabled{opacity:.45;cursor:not-allowed}
+  .votacion .btn:disabled[aria-pressed="true"]{opacity:1}  /* tu voto se sigue viendo marcado */
 </style>
 </head>
 <body>
@@ -148,8 +149,8 @@
       <button class="btn btn-primary btn-si" id="vot-si">Sí</button>
       <button class="btn btn-ghost btn-no" id="vot-no">No</button>
     </div>
-    <div class="barra-votos"><span id="vot-barra"></span><i style="left:70%"></i></div>
-    <div class="recuento"><span id="vot-recuento"></span><span>Hacen falta 7</span></div>
+    <div class="barra-votos"><span id="vot-barra"></span><i style="left:60%"></i></div>
+    <div class="recuento"><span id="vot-recuento"></span><span>Hacen falta 6</span></div>
   </div>
   <div class="card votacion" style="margin-top:10px">
     <span class="etiqueta-vista">Lo que ve el admin</span>
@@ -169,12 +170,12 @@ const CATALOGO = {
   pieles: ["#fde0c8", "#f1c27d", "#e0ac69", "#c68642", "#8d5524", "#5c3a21"],
   colores_pelo: ["#1c1c1c", "#3b2417", "#6a4027", "#a0632f", "#e3c16f", "#b5482a", "#9e9e9e", "#f2f2f2", "#2f6fdb", "#e0408a"],
   peinados: ["calvo", "rapado", "corto", "tupe", "rizos", "melena", "cresta"],
-  barbas: ["ninguna", "bigote", "perilla", "corta", "completa"],
+  barbas: ["ninguna", "bigote", "perilla", "completa"],
   especiales: [{id:"alien",nombre:"Alien"},{id:"perro",nombre:"Perro"},{id:"gato",nombre:"Gato"},
                {id:"pepino",nombre:"Pepino"},{id:"calabaza",nombre:"Calabaza"}],
 };
 const NOMBRE_PEINADO = {calvo:"Calvo", rapado:"Rapado", corto:"Corto", tupe:"Tupé", rizos:"Rizos", melena:"Melena", cresta:"Cresta"};
-const NOMBRE_BARBA = {ninguna:"Sin barba", bigote:"Bigote", perilla:"Perilla", corta:"De 3 días", completa:"Completa"};
+const NOMBRE_BARBA = {ninguna:"Sin barba", bigote:"Bigote", perilla:"Perilla", completa:"Completa"};
 
 /* =====================================================================
    Dibujo de avatares (SVG, cuadrado de 100x100; el círculo lo pone el CSS)
@@ -205,7 +206,6 @@ const BARBA = {
   ninguna: () => "",
   bigote: c => BIGOTE(c),
   perilla: c => BIGOTE(c) + `<path d="M44,64 Q50,62 56,64 Q55,72.5 50,73.5 Q45,72.5 44,64 Z" fill="${c}"/>`,
-  corta: c => `<path d="${MANDIBULA}" fill="${c}" opacity=".38"/>`,
   completa: c => `<path d="${MANDIBULA}" fill="${c}"/>` + BIGOTE(c),
 };
 
@@ -432,21 +432,25 @@ function pintarPista() {
 }
 
 /* =====================================================================
-   Votación (simulada): los otros 9 convocados ya han votado 6 síes y 2 noes.
-   Con tu "Sí" se llega a 7 y el admin puede rebarajar. Máximo 3 repartos.
+   Votación (simulada): de los otros 9 convocados ya han votado 5 síes y 2 noes.
+   Con tu "Sí" se llega a 6 y el admin puede rebarajar. Se vota una sola vez
+   por reparto (sin cambiar de opinión). Máximo 3 repartos.
    ===================================================================== */
-const NECESARIOS = 7, MAX_REPARTOS = 3, CONVOCADOS = 10;
-let reparto = 1, otrosSi = 6, otrosNo = 2, miVoto = null;
+const NECESARIOS = 6, MAX_REPARTOS = 3, CONVOCADOS = 10;
+let reparto = 1, otrosSi = 5, otrosNo = 2, miVoto = null;
 
 function pintarVotacion() {
   const si = otrosSi + (miVoto === true ? 1 : 0), no = otrosNo + (miVoto === false ? 1 : 0);
   const quedan = reparto < MAX_REPARTOS;
   document.getElementById("vot-si").setAttribute("aria-pressed", miVoto === true);
   document.getElementById("vot-no").setAttribute("aria-pressed", miVoto === false);
-  document.getElementById("vot-si").disabled = document.getElementById("vot-no").disabled = !quedan;
-  document.getElementById("vot-texto").textContent = quedan
-    ? `Reparto ${reparto} de ${MAX_REPARTOS}. Si ${NECESARIOS} o más convocados votáis sí, el admin podrá rebarajar.`
-    : `Ya se han hecho los ${MAX_REPARTOS} repartos: estos equipos son los definitivos.`;
+  // Una vez votado, los dos botones se bloquean hasta el siguiente reparto
+  document.getElementById("vot-si").disabled = document.getElementById("vot-no").disabled = !quedan || miVoto !== null;
+  document.getElementById("vot-texto").textContent = !quedan
+    ? `Ya se han hecho los ${MAX_REPARTOS} repartos: estos equipos son los definitivos.`
+    : miVoto !== null
+      ? `Has votado "${miVoto ? "Sí" : "No"}". Podrás volver a votar si el admin hace un nuevo reparto.`
+      : `Reparto ${reparto} de ${MAX_REPARTOS}. Solo puedes votar una vez. Con ${NECESARIOS} síes, el admin podrá rebarajar.`;
   document.getElementById("vot-barra").style.width = `${si / CONVOCADOS * 100}%`;
   document.getElementById("vot-recuento").textContent =
     `Sí: ${si} · No: ${no} · Sin votar: ${CONVOCADOS - si - no}`;
@@ -457,10 +461,10 @@ function pintarVotacion() {
     : puede ? `¡${si} votos a favor! Ya puedes rebarajar (reparto ${reparto + 1} de ${MAX_REPARTOS}).`
             : `Rebarajar se activa con ${NECESARIOS} votos a favor (ahora ${si}).`;
 }
-document.getElementById("vot-si").addEventListener("click", () => { miVoto = true; pintarVotacion(); });
-document.getElementById("vot-no").addEventListener("click", () => { miVoto = false; pintarVotacion(); });
+document.getElementById("vot-si").addEventListener("click", () => { if (miVoto === null) { miVoto = true; pintarVotacion(); } });
+document.getElementById("vot-no").addEventListener("click", () => { if (miVoto === null) { miVoto = false; pintarVotacion(); } });
 document.getElementById("rebarajar").addEventListener("click", () => {
-  reparto += 1; miVoto = null; otrosSi = 6; otrosNo = 1;  // votación nueva para el nuevo reparto
+  reparto += 1; miVoto = null; otrosSi = 5; otrosNo = 1;  // votación nueva para el nuevo reparto
   pintarPista(); pintarVotacion();
 });
 

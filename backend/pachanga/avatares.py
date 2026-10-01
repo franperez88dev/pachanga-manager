@@ -23,7 +23,7 @@ PIELES = ["#fde0c8", "#f1c27d", "#e0ac69", "#c68642", "#8d5524", "#5c3a21"]
 COLORES_PELO = ["#1c1c1c", "#3b2417", "#6a4027", "#a0632f", "#e3c16f", "#b5482a", "#9e9e9e", "#f2f2f2",
                 "#2f6fdb", "#e0408a"]
 PEINADOS = ["calvo", "rapado", "corto", "tupe", "rizos", "melena", "cresta"]
-BARBAS = ["ninguna", "bigote", "perilla", "corta", "completa"]
+BARBAS = ["ninguna", "bigote", "perilla", "completa"]
 # Dibujos incluidos en la app. Los que suba un admin van en la tabla AvatarSubido.
 ESPECIALES = {"alien": "Alien", "perro": "Perro", "gato": "Gato", "pepino": "Pepino", "calabaza": "Calabaza"}
 

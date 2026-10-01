@@ -100,15 +100,15 @@ class MatchPlayer(db.Model):
 
 
 class VotoRebarajar(db.Model):
-    """"¿Deseas una nueva selección de equipo?". Un voto por convocado y por reparto
-    (la `ronda` es el número de reparto al que se refiere el voto)."""
+    """"¿Deseas una nueva selección de equipo?". Un voto por convocado y por reparto,
+    sin poder cambiarlo (la `ronda` es el número de reparto al que se refiere el voto)."""
     __tablename__ = "votos_rebarajar"
 
     match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), primary_key=True)
     ronda = db.Column(db.Integer, primary_key=True)
     cambiar = db.Column(db.Boolean, nullable=False)
-    fecha = db.Column(db.DateTime, nullable=False, default=ahora, onupdate=ahora)
+    fecha = db.Column(db.DateTime, nullable=False, default=ahora)
 
 
 class Rating(db.Model):
