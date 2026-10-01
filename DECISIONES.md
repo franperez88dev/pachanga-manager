@@ -49,5 +49,13 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - "Volver a elegir" solo sirve para **cambiar convocados**: con los mismos 10, los equipos se mantienen; si cambia alguien, se rehacen los equipos y la cuenta de repartos y votos empieza de cero.
 - Umbral y máximo configurables (`VOTOS_PARA_REBARAJAR`, `MAX_REPARTOS`).
 
+## Fase 2: frontend (01/10/2026)
+- Router: paquete **`react-router` 8** con `HashRouter`. `react-router-dom` (el que nombraba el PROMPT) ya no se publica en la versión 8; es el mismo código, solo cambia el nombre del `import`.
+- Fuentes Barlow / Barlow Condensed empaquetadas con `@fontsource` (sin CDN).
+- `app/.env.development` (y más adelante `.env.production`) **sí van a git**: la URL del backend no es secreta.
+- Asistencias: interruptor `MOSTRAR_ASISTENCIAS` en `app/src/config.js` (ahora `false`).
+- Navegación inferior: Inicio · Partidos · Tabla · Valorar · (Admin) · Perfil.
+- Comandos solo para pruebas en local: `flask datos-demo` y `flask demo-votar` (se niegan a funcionar fuera de SQLite).
+
 ## Pendiente de decidir más adelante
 - Migraciones de base de datos (Flask-Migrate) antes de la Fase 4.
