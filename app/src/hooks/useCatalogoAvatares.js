@@ -4,10 +4,6 @@ import { api } from "../api";
 
 let promesa = null;
 
-export function olvidarCatalogo() {
-  promesa = null; // tras subir o retirar un avatar, para que se vuelva a pedir
-}
-
 export function useCatalogoAvatares() {
   const [catalogo, setCatalogo] = useState(null);
   const [error, setError] = useState(null);

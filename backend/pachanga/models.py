@@ -142,19 +142,6 @@ class StatReport(db.Model):
     usuario = db.relationship("User")
 
 
-class AvatarSubido(db.Model):
-    """Imagen de avatar que sube un admin (PNG, JPEG o WebP pequeño).
-    Al "borrarla" solo se oculta del catálogo: quien ya la tenga la conserva."""
-    __tablename__ = "avatares_subidos"
-
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(30), nullable=False)
-    mime = db.Column(db.String(20), nullable=False)
-    datos = db.Column(db.LargeBinary, nullable=False)
-    activo = db.Column(db.Boolean, nullable=False, default=True)
-    creado = db.Column(db.DateTime, nullable=False, default=ahora)
-
-
 class IntentoAcceso(db.Model):
     """Contador de intentos para el bloqueo de login y el límite de registros.
     La clave es un hash (de 'mote:xxx' o 'ip:x.x.x.x'): no guardamos IPs en claro."""

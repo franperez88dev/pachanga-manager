@@ -9,7 +9,6 @@ import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
 import { MOSTRAR_ASISTENCIAS } from "../config";
 import { fechaPartido, plural } from "../formato";
 import { useCarga } from "../hooks/useCarga";
-import { olvidarCatalogo, useCatalogoAvatares } from "../hooks/useCatalogoAvatares";
 import { useSesion } from "../sesion";
 
 export default function Admin() {
@@ -20,7 +19,6 @@ export default function Admin() {
         <NavLink to="altas">Altas</NavLink>
         <NavLink to="goles">Goles</NavLink>
         <NavLink to="pena">Peña</NavLink>
-        <NavLink to="avatares">Avatares</NavLink>
       </nav>
       <Outlet />
     </div>
@@ -174,80 +172,5 @@ export function Pena() {
         )}
       </ConDatos>
     </>
-  );
-}
-
-export function AvataresAdmin() {
-  const avisar = useAvisar();
-  const [version, setVersion] = useState(0);
-  return <ListaAvatares key={version} avisar={avisar} alCambiar={() => { olvidarCatalogo(); setVersion((v) => v + 1); }} />;
-}
-
-function ListaAvatares({ avisar, alCambiar }) {
-  const { catalogo, error } = useCatalogoAvatares();
-  const [nombre, setNombre] = useState("");
-  const [fichero, setFichero] = useState(null);
-  const [subiendo, setSubiendo] = useState(false);
-
-  if (error) return <MensajeError mensaje={error} />;
-  if (!catalogo) return <Cargando />;
-  const subidos = catalogo.especiales.filter((e) => e.imagen);
-
-  async function subir(e) {
-    e.preventDefault();
-    const formulario = new FormData();
-    formulario.append("nombre", nombre);
-    formulario.append("imagen", fichero);
-    setSubiendo(true);
-    try {
-      await api.subir("/api/admin/avatares", formulario);
-      avisar(`Avatar "${nombre}" añadido`);
-      alCambiar();
-    } catch (err) {
-      avisar(err.message);
-      setSubiendo(false);
-    }
-  }
-
-  async function retirar(a) {
-    try {
-      await api.borrar(`/api/admin/avatares/${a.imagen.split("/").pop()}`);
-      avisar(`"${a.nombre}" retirado`);
-      alCambiar();
-    } catch (err) {
-      avisar(err.message);
-    }
-  }
-
-  return (
-    <div className="pila">
-      <form className="tarjeta relleno formulario" onSubmit={subir}>
-        <h3 className="titulo-tarjeta">Añadir un avatar</h3>
-        <p className="nota">Imagen cuadrada PNG, JPEG o WebP de 300 KB como mucho. Aparecerá entre los avatares especiales.</p>
-        <label className="campo-etiqueta">
-          Nombre
-          <input className="campo" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={30} required />
-        </label>
-        <label className="campo-etiqueta">
-          Imagen
-          <input className="campo" type="file" accept="image/png,image/jpeg,image/webp" required
-            onChange={(e) => setFichero(e.target.files[0] ?? null)} />
-        </label>
-        <button className="btn btn-primario btn-ancho" disabled={subiendo || !nombre.trim() || !fichero}>Subir avatar</button>
-      </form>
-      <h2 className="titulo-seccion">Avatares subidos</h2>
-      {subidos.length === 0 ? <Vacio>Todavía no has subido ninguno.</Vacio> : (
-        <div className="lista">
-          {subidos.map((a) => (
-            <div key={a.id} className="fila-lista">
-              <Avatar avatar={a} tam={46} />
-              <div className="fila-lista-texto fuerte">{a.nombre}</div>
-              <BotonConfirmar pregunta="¿Retirar?" onConfirmar={() => retirar(a)}>Retirar</BotonConfirmar>
-            </div>
-          ))}
-          <p className="nota">Al retirar uno, desaparece del catálogo, pero quien ya lo tenga lo conserva.</p>
-        </div>
-      )}
-    </div>
   );
 }

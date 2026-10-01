@@ -73,8 +73,8 @@ export default function EditorAvatar({ catalogo, valor, onChange }) {
           {catalogo.especiales.map((e) => (
             <button key={e.id} type="button" className="especial" title={e.nombre} aria-label={e.nombre}
               aria-pressed={valor.tipo === "especial" && valor.id === e.id}
-              onClick={() => onChange({ tipo: "especial", id: e.id, ...(e.imagen ? { imagen: e.imagen } : {}) })}>
-              <Avatar avatar={{ tipo: "especial", id: e.id, imagen: e.imagen }} tam={54} />
+              onClick={() => onChange({ tipo: "especial", id: e.id })}>
+              <Avatar avatar={{ tipo: "especial", id: e.id }} tam={54} />
             </button>
           ))}
         </div>

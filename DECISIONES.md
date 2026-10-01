@@ -32,7 +32,7 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - **Personalizable**: color de piel, peinado + color (calvo, corto, tupé, rizos, melena o cresta), barba + color (sin barba, bigote, perilla o completa; la "de 3 días" se quitó porque quedaba mal).
 - **Botón "Aleatorio"**, que se puede pulsar las veces que quiera; a veces sale un dibujo especial (alien, perro, gato, pepino, calabaza).
 - Si no elige nada, le toca uno al azar.
-- **El admin puede subir avatares nuevos** (PNG, JPEG o WebP de hasta 300 KB; SVG no, por seguridad). Al retirarlos desaparecen del catálogo, pero quien ya los tenga los conserva.
+- **Los avatares disponibles son solo los incluidos en la app** (el muñeco personalizable y los 5 especiales). La opción de que el admin subiera avatares nuevos se quitó el 01/10/2026 a petición de Fran.
 
 ## Equipos
 - Se muestran las fuerzas totales con números ("15,0 vs 14,5"). Se sabe que, rebarajando muchas veces, podrían deducirse medias aproximadas; se acepta a cambio del pique entre amigos.

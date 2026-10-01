@@ -5,9 +5,8 @@ const COLORES_NATURALES = 8; // los primeros colores de pelo; los últimos (azul
 
 export function avatarAleatorio(catalogo) {
   if (catalogo.especiales.length && Math.random() < 0.2) {
-    // 1 de cada 5: sorpresa (alien, perro... o uno subido por un admin)
-    const e = elegir(catalogo.especiales);
-    return { tipo: "especial", id: e.id, ...(e.imagen ? { imagen: e.imagen } : {}) };
+    // 1 de cada 5: sorpresa (alien, perro, gato...)
+    return { tipo: "especial", id: elegir(catalogo.especiales).id };
   }
   return personaAleatoria(catalogo);
 }
@@ -25,7 +24,7 @@ export function personaAleatoria(catalogo) {
   };
 }
 
-// Lo que se manda al backend (la ruta de la imagen la pone él)
+// Lo que se manda al backend: solo los campos que conoce
 export function avatarParaEnviar(avatar) {
   if (avatar.tipo === "especial") return { tipo: "especial", id: avatar.id };
   const { tipo, piel, peinado, color_pelo, barba, color_barba } = avatar;

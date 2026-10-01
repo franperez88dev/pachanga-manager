@@ -30,15 +30,13 @@ export function avisarCuandoCaduqueLaSesion(funcion) {
   alCaducarSesion = funcion;
 }
 
-export async function peticion(ruta, { metodo = "GET", datos, formulario, timeout = 15000 } = {}) {
+export async function peticion(ruta, { metodo = "GET", datos, timeout = 15000 } = {}) {
   const cabeceras = {};
   const t = token.leer();
   if (t) cabeceras.Authorization = `Bearer ${t}`;
 
   let cuerpo;
-  if (formulario) {
-    cuerpo = formulario; // FormData (subir imágenes): el navegador pone su propia cabecera
-  } else if (datos !== undefined) {
+  if (datos !== undefined) {
     cabeceras["Content-Type"] = "application/json";
     cuerpo = JSON.stringify(datos);
   }
@@ -71,5 +69,4 @@ export const api = {
   post: (ruta, datos = {}) => peticion(ruta, { metodo: "POST", datos }),
   put: (ruta, datos = {}) => peticion(ruta, { metodo: "PUT", datos }),
   borrar: (ruta, datos) => peticion(ruta, { metodo: "DELETE", datos }),
-  subir: (ruta, formulario) => peticion(ruta, { metodo: "POST", formulario, timeout: 30000 }),
 };

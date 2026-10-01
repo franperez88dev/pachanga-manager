@@ -5,8 +5,8 @@ Un avatar se guarda como un pequeño JSON en el usuario. Hay dos tipos:
 - "persona": un muñeco que el jugador personaliza.
       {"tipo": "persona", "piel": "#e0ac69", "peinado": "tupe", "color_pelo": "#3b2417",
        "barba": "perilla", "color_barba": "#3b2417"}
-- "especial": un dibujo ya hecho (alien, perro...) o una imagen que haya subido un admin.
-      {"tipo": "especial", "id": "alien"}      {"tipo": "especial", "id": "subido-3"}
+- "especial": uno de los dibujos ya hechos (alien, perro, gato...).
+      {"tipo": "especial", "id": "alien"}
 
 El backend solo valida y guarda; los dibujos los pinta la app. El catálogo
 (GET /api/avatares) es la única fuente de las opciones válidas, así la app y el
@@ -16,18 +16,15 @@ import random
 import re
 
 from .errores import ErrorApi
-from .extensions import db
-from .models import AvatarSubido
 
 PIELES = ["#fde0c8", "#f1c27d", "#e0ac69", "#c68642", "#8d5524", "#5c3a21"]
 COLORES_PELO = ["#1c1c1c", "#3b2417", "#6a4027", "#a0632f", "#e3c16f", "#b5482a", "#9e9e9e", "#f2f2f2",
                 "#2f6fdb", "#e0408a"]
 PEINADOS = ["calvo", "corto", "tupe", "rizos", "melena", "cresta"]
 BARBAS = ["ninguna", "bigote", "perilla", "completa"]
-# Dibujos incluidos en la app. Los que suba un admin van en la tabla AvatarSubido.
+# Dibujos especiales incluidos en la app
 ESPECIALES = {"alien": "Alien", "perro": "Perro", "gato": "Gato", "pepino": "Pepino", "calabaza": "Calabaza"}
 
-PREFIJO_SUBIDO = "subido-"
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -42,14 +39,6 @@ def persona_aleatoria(rng=None):
         "barba": rng.choice(BARBAS),
         "color_barba": pelo,
     }
-
-
-def _subido_activo(avatar_id):
-    numero = avatar_id[len(PREFIJO_SUBIDO):]
-    if not numero.isascii() or not numero.isdigit() or len(numero) > 9:
-        return False
-    subido = db.session.get(AvatarSubido, int(numero))
-    return subido is not None and subido.activo
 
 
 def validar_avatar(datos):
@@ -72,31 +61,8 @@ def validar_avatar(datos):
         return avatar
 
     if tipo == "especial":
-        avatar_id = datos.get("id")
-        if not isinstance(avatar_id, str):
-            raise ErrorApi(400, "Avatar no válido")
-        if avatar_id in ESPECIALES or (avatar_id.startswith(PREFIJO_SUBIDO) and _subido_activo(avatar_id)):
-            return {"tipo": "especial", "id": avatar_id}
-        raise ErrorApi(400, "Ese avatar no existe")
+        if not isinstance(datos.get("id"), str) or datos["id"] not in ESPECIALES:
+            raise ErrorApi(400, "Ese avatar no existe")
+        return {"tipo": "especial", "id": datos["id"]}
 
     raise ErrorApi(400, "Avatar no válido: 'tipo' debe ser 'persona' o 'especial'")
-
-
-# ------------------------------------------------------------ imágenes subidas por un admin
-MAX_BYTES_IMAGEN = 300 * 1024
-
-# Solo imágenes "de mapa de bits". SVG no: puede llevar código dentro.
-_FIRMAS = (
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-)
-
-
-def tipo_de_imagen(contenido):
-    """Detecta el formato mirando los primeros bytes (no nos fiamos de la extensión)."""
-    for firma, mime in _FIRMAS:
-        if contenido.startswith(firma):
-            return mime
-    if contenido[:4] == b"RIFF" and contenido[8:12] == b"WEBP":
-        return "image/webp"
-    return None
