@@ -27,13 +27,16 @@ def assert_sin_datos_secretos(respuesta):
 
 @pytest.fixture
 def peña_con_valoraciones(client, admin, plantilla, partido_con_equipos):
-    """Todos valoran a todos, se rebaraja, se cierra el partido y hay un reporte pendiente."""
+    """Todos valoran a todos, se vota y se rebaraja, se cierra el partido y hay un reporte pendiente."""
     for j in plantilla:
         for otro in plantilla:
             if otro.id != j.id:
                 client.post("/api/valoraciones", json={"valorado_id": otro.id, "estrellas": 4}, headers=j.headers)
     pid = partido_con_equipos
-    client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True}, headers=admin.headers)
+    for j in plantilla[:7]:
+        client.put(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=j.headers)
+    assert client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True},
+                       headers=admin.headers).status_code == 200
     client.post(f"/api/partidos/{pid}/cerrar", json={"goles_blanco": 1, "goles_negro": 0}, headers=admin.headers)
     r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 1, "asistencias": 0},
                     headers=plantilla[0].headers)
@@ -79,9 +82,10 @@ def test_equipos_muestran_solo_fuerza_total(client, plantilla, peña_con_valorac
     equipos = partido["equipos"]
     assert set(equipos) == {"blanco", "negro", "diferencia"}
     for color in ("blanco", "negro"):
-        assert set(equipos[color]) == {"color", "nombre", "fuerza", "jugadores"}
+        assert set(equipos[color]) == {"color", "nombre", "fuerza", "jugadores", "porteria"}
         for j in equipos[color]["jugadores"]:
-            assert set(j) == {"id", "mote", "nombre_real", "dorsal", "es_admin", "avatar", "posicion"}
+            assert set(j) == {"id", "mote", "nombre_real", "dorsal", "es_admin", "avatar", "posicion",
+                              "orden_porteria"}
 
 # ------------------------------------------------------------ reglas de las valoraciones
 def test_valoracion_una_sola_vez_y_sin_poder_verla(client, plantilla):

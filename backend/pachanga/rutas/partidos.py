@@ -1,7 +1,9 @@
 """Partidos.
 
 Ciclo de vida de un partido:
-  1. (admin) Crear -> convocar 10 -> hacer equipos (Rebarajar / Volver a elegir).
+  1. (admin) Crear -> convocar 10 -> hacer equipos (una sola vez).
+     Los convocados votan si quieren otro reparto; con 7 síes el admin puede
+     rebarajar, hasta 3 repartos en total. Cambiar a algún convocado empieza de cero.
   2. (admin) Cerrar indicando el resultado. Desde aquí cuenta como partido jugado.
   3. Goles, gpp y asistencias, por uno de dos caminos (o una mezcla):
      a) El admin rellena la planilla en ese momento: queda todo confirmado.
@@ -18,7 +20,7 @@ from ..errores import ErrorApi
 from ..extensions import db
 from ..models import (
     EQUIPO_BLANCO, EQUIPO_NEGRO, PARTIDO_ABIERTO, PARTIDO_CERRADO, REPORTE_CONFIRMADO,
-    REPORTE_PENDIENTE, REPORTES_ACTIVOS, Match, MatchPlayer, StatReport, User,
+    REPORTE_PENDIENTE, REPORTES_ACTIVOS, Match, MatchPlayer, StatReport, User, VotoRebarajar,
 )
 from ..serializadores import partido_detalle, partido_resumen, reporte, usuario_publico
 from ..seguridad import requiere_admin, requiere_aprobado
@@ -127,6 +129,7 @@ def editar(pid):
 def borrar(pid):
     partido = partido_o_404(pid)
     exigir_abierto(partido)  # un partido abierto aún no tiene goles apuntados
+    VotoRebarajar.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
     db.session.delete(partido)
     db.session.commit()
     return "", 204
@@ -136,7 +139,10 @@ def borrar(pid):
 @requiere_admin
 def convocatoria(pid):
     """Recibe {"jugadores": [ids]} con EXACTAMENTE 10 jugadores aprobados distintos.
-    Cambiar la convocatoria deshace los equipos que hubiera."""
+
+    Si son los mismos 10 de antes no cambia nada (los equipos se mantienen: así
+    "Volver a elegir" no sirve para saltarse la votación). Si cambia alguien, los
+    equipos, los votos y la cuenta de repartos empiezan de cero."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
     ids = cuerpo_json().get("jugadores")
@@ -148,57 +154,97 @@ def convocatoria(pid):
     if len(usuarios) != len(ids) or not all(u.aprobado for u in usuarios):
         raise ErrorApi(400, "Todos los convocados deben ser jugadores aprobados")
 
-    partido.jugadores.clear()
-    db.session.flush()
-    partido.jugadores.extend(MatchPlayer(user_id=uid) for uid in ids)
-    deshacer_equipos(partido)
-    db.session.commit()
+    if set(ids) != {mp.user_id for mp in partido.jugadores}:
+        partido.jugadores.clear()
+        db.session.flush()
+        partido.jugadores.extend(MatchPlayer(user_id=uid) for uid in ids)
+        deshacer_equipos(partido)
+        db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
+
+
+def votos_si(partido):
+    return VotoRebarajar.query.filter_by(
+        match_id=partido.id, ronda=partido.num_repartos, cambiar=True).count()
 
 
 @bp.post("/<int:pid>/equipos")
 @requiere_admin
 def crear_equipos(pid):
-    """{"rebarajar": false} -> el reparto más igualado ("Crear equipos").
-    {"rebarajar": true}  -> otro reparto equilibrado distinto del actual."""
+    """{"rebarajar": false} -> "Crear equipos": el reparto más igualado. Solo una vez.
+    {"rebarajar": true}  -> otro reparto equilibrado distinto del actual. Solo si lo
+                            han votado (7 síes) y sin pasar de 3 repartos en total."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
+    cfg = current_app.config
     if len(partido.jugadores) != JUGADORES_POR_PARTIDO:
         raise ErrorApi(409, f"Primero convoca a {JUGADORES_POR_PARTIDO} jugadores")
 
     anterior = None
-    if cuerpo_json().get("rebarajar") is True and partido.equipos_generados:
+    if cuerpo_json().get("rebarajar") is True:
+        if not partido.equipos_generados:
+            raise ErrorApi(409, "Todavía no hay equipos que rebarajar")
+        if partido.num_repartos >= cfg["MAX_REPARTOS"]:
+            raise ErrorApi(409, f"Ya se han hecho los {cfg['MAX_REPARTOS']} repartos permitidos")
+        if votos_si(partido) < cfg["VOTOS_PARA_REBARAJAR"]:
+            raise ErrorApi(409, f"Para rebarajar hacen falta {cfg['VOTOS_PARA_REBARAJAR']} votos a favor")
         anterior = (
             {mp.user_id for mp in partido.jugadores if mp.equipo == EQUIPO_BLANCO},
             {mp.user_id for mp in partido.jugadores if mp.equipo == EQUIPO_NEGRO},
         )
+    elif partido.equipos_generados:
+        raise ErrorApi(409, "Los equipos ya están hechos. Solo se pueden rehacer si lo votan los convocados")
 
     fuerzas = fuerzas_de([mp.user_id for mp in partido.jugadores])
-    blanco, _negro, f_blanco, f_negro = elegir_reparto(
-        fuerzas, anterior=anterior, tolerancia=current_app.config["TOLERANCIA_REBARAJAR"]
-    )
+    blanco, _negro, f_blanco, f_negro = elegir_reparto(fuerzas, anterior=anterior,
+                                                       tolerancia=cfg["TOLERANCIA_REBARAJAR"])
     for mp in partido.jugadores:
         mp.equipo = EQUIPO_BLANCO if mp.user_id in blanco else EQUIPO_NEGRO
-    # Quién va de portero, defensa o delantero se sortea (posiciones 0 a 4 en cada equipo)
-    azar = random.SystemRandom()
-    for color in (EQUIPO_BLANCO, EQUIPO_NEGRO):
-        suyos = [mp for mp in partido.jugadores if mp.equipo == color]
-        for posicion, mp in enumerate(azar.sample(suyos, len(suyos))):
-            mp.posicion = posicion
+    sortear_posiciones(partido)
     partido.equipos_generados = True
+    partido.num_repartos += 1  # empieza una ronda de votación nueva (los votos viejos ya no cuentan)
     partido.fuerza_blanco = f_blanco
     partido.fuerza_negro = f_negro
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
 
 
-@bp.delete("/<int:pid>/equipos")
-@requiere_admin
-def quitar_equipos(pid):
-    """Botón "Volver a elegir": se deshacen los equipos y se mantiene la convocatoria."""
+def sortear_posiciones(partido):
+    """En cada equipo se sortea quién juega dónde (0 portero, 1-2 defensas, 3-4 delanteros)
+    y el orden en la portería: empieza el que sale de portero y el resto, al azar."""
+    azar = random.SystemRandom()
+    for color in (EQUIPO_BLANCO, EQUIPO_NEGRO):
+        suyos = azar.sample([mp for mp in partido.jugadores if mp.equipo == color], JUGADORES_POR_PARTIDO // 2)
+        for posicion, mp in enumerate(suyos):
+            mp.posicion = posicion
+        portero, resto = suyos[0], azar.sample(suyos[1:], len(suyos) - 1)
+        for turno, mp in enumerate([portero] + resto, start=1):
+            mp.orden_porteria = turno
+
+
+@bp.put("/<int:pid>/voto")
+@requiere_aprobado
+def votar(pid):
+    """{"cambiar": true|false}: "¿Deseas una nueva selección de equipo?".
+    Solo los convocados, con los equipos hechos y si aún quedan repartos.
+    Se puede cambiar el voto hasta que el admin rebaraje."""
     partido = partido_o_404(pid)
+    if not any(mp.user_id == g.usuario.id for mp in partido.jugadores):
+        raise ErrorApi(403, "Solo votan los convocados de este partido")
     exigir_abierto(partido)
-    deshacer_equipos(partido)
+    if not partido.equipos_generados:
+        raise ErrorApi(409, "Todavía no hay equipos")
+    if partido.num_repartos >= current_app.config["MAX_REPARTOS"]:
+        raise ErrorApi(409, "Ya no se pueden rehacer más los equipos")
+    cambiar = cuerpo_json().get("cambiar")
+    if not isinstance(cambiar, bool):
+        raise ErrorApi(400, "'cambiar' debe ser true o false")
+
+    voto = db.session.get(VotoRebarajar, (partido.id, g.usuario.id, partido.num_repartos))
+    if voto is None:
+        voto = VotoRebarajar(match_id=partido.id, user_id=g.usuario.id, ronda=partido.num_repartos)
+        db.session.add(voto)
+    voto.cambiar = cambiar
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
 

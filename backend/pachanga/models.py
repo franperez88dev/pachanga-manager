@@ -67,6 +67,8 @@ class Match(db.Model):
     lugar = db.Column(db.String(80), nullable=False)
     estado = db.Column(db.String(10), nullable=False, default=PARTIDO_ABIERTO)
     equipos_generados = db.Column(db.Boolean, nullable=False, default=False)
+    # Repartos hechos con esta convocatoria (el inicial + los rebarajados por votación)
+    num_repartos = db.Column(db.Integer, nullable=False, default=0)
     # Fuerza total de cada equipo en el momento de crearlos (lo único que se enseña)
     fuerza_blanco = db.Column(db.Float)
     fuerza_negro = db.Column(db.Float)
@@ -90,9 +92,23 @@ class MatchPlayer(db.Model):
     equipo = db.Column(db.String(10))  # blanco / negro / None si aún no hay equipos
     # Sitio en el campo dentro de su equipo: 0 portero, 1-2 defensas, 3-4 delanteros
     posicion = db.Column(db.Integer)
+    # Turno en la portería (cambian cada 5 minutos): 1 = el que empieza de portero
+    orden_porteria = db.Column(db.Integer)
 
     partido = db.relationship("Match", back_populates="jugadores")
     usuario = db.relationship("User")
+
+
+class VotoRebarajar(db.Model):
+    """"¿Deseas una nueva selección de equipo?". Un voto por convocado y por reparto
+    (la `ronda` es el número de reparto al que se refiere el voto)."""
+    __tablename__ = "votos_rebarajar"
+
+    match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), primary_key=True)
+    ronda = db.Column(db.Integer, primary_key=True)
+    cambiar = db.Column(db.Boolean, nullable=False)
+    fecha = db.Column(db.DateTime, nullable=False, default=ahora, onupdate=ahora)
 
 
 class Rating(db.Model):

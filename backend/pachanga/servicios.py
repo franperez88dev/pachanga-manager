@@ -10,7 +10,7 @@ from .errores import ErrorApi
 from .extensions import db
 from .models import (
     EQUIPO_BLANCO, EQUIPO_NEGRO, ESTADO_APROBADO, PARTIDO_CERRADO, REPORTE_CONFIRMADO,
-    ROL_ADMIN, Match, MatchPlayer, Rating, StatReport, User,
+    ROL_ADMIN, Match, MatchPlayer, Rating, StatReport, User, VotoRebarajar,
 )
 from .seguridad import hash_pin, normalizar_mote, nuevo_pin
 
@@ -172,6 +172,7 @@ def borrar_usuario(usuario):
         synchronize_session=False
     )
     StatReport.query.filter_by(user_id=usuario.id).delete(synchronize_session=False)
+    VotoRebarajar.query.filter_by(user_id=usuario.id).delete(synchronize_session=False)
     for convocatoria in MatchPlayer.query.filter_by(user_id=usuario.id).all():
         partido = convocatoria.partido
         db.session.delete(convocatoria)
@@ -182,9 +183,13 @@ def borrar_usuario(usuario):
 
 
 def deshacer_equipos(partido):
+    """Se usa cuando cambia la convocatoria: equipos, votos y cuenta de repartos empiezan de cero."""
     for mp in partido.jugadores:
         mp.equipo = None
         mp.posicion = None
+        mp.orden_porteria = None
+    VotoRebarajar.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
+    partido.num_repartos = 0
     partido.equipos_generados = False
     partido.fuerza_blanco = None
     partido.fuerza_negro = None

@@ -37,8 +37,17 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 ## Equipos
 - Se muestran las fuerzas totales con números ("15,0 vs 14,5"). Se sabe que, rebarajando muchas veces, podrían deducirse medias aproximadas; se acepta a cambio del pique entre amigos.
 - Tolerancia de "Rebarajar": 0,5 puntos sobre el mejor reparto posible (explicado en `backend/pachanga/equipos.py`).
-- **Vista de equipos sobre una pista de fútbol sala** (fondo azul `#002db3`), en formación **portero – 2 defensas – 2 delanteros**. Los defensas van al borde de su área y los delanteros, cerca del círculo central en su propio campo. Cada jugador se ve con su avatar redondo, su dorsal y su mote debajo.
+- **Vista de equipos sobre una pista de fútbol sala en horizontal** (fondo azul `#002db3`; Nevados a la izquierda y Sombras a la derecha), en formación **portero – 2 defensas – 2 delanteros**. Los defensas van al borde de su área y los delanteros, cerca del círculo central en su propio campo. Cada jugador se ve con su avatar redondo, su dorsal y su mote debajo.
 - Quién juega de portero, defensa o delantero se sortea al hacer los equipos y se guarda, para que todos vean la misma alineación.
+- **Orden en portería**: al hacer los equipos se sortea en cada equipo el orden de los 5 en la portería (cambio cada 5 minutos). Empieza el que sale de portero en la pista.
+
+## Votación para rebarajar (01/10/2026; sustituye al "Rebarajar" libre)
+- El admin hace los equipos **una sola vez**.
+- Después, a cada convocado le aparece **"¿Deseas una nueva selección de equipo?" Sí / No**. Puede cambiar su voto hasta que se rebaraje. Solo se ven los totales; cada uno ve únicamente su propio voto.
+- Con **7 síes o más** ("más de 6") el admin puede rebarajar. El nuevo reparto sigue sin repetir el anterior.
+- **Máximo 3 repartos** en total (el inicial + 2 cambios). Cada reparto abre una votación nueva desde cero.
+- "Volver a elegir" solo sirve para **cambiar convocados**: con los mismos 10, los equipos se mantienen; si cambia alguien, se rehacen los equipos y la cuenta de repartos y votos empieza de cero.
+- Umbral y máximo configurables (`VOTOS_PARA_REBARAJAR`, `MAX_REPARTOS`).
 
 ## Pendiente de decidir más adelante
 - Migraciones de base de datos (Flask-Migrate) antes de la Fase 4.

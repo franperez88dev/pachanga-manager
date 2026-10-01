@@ -21,7 +21,6 @@ ACCIONES_ADMIN = [
     ("delete", "/api/partidos/{pid}"),
     ("put", "/api/partidos/{pid}/convocatoria"),
     ("post", "/api/partidos/{pid}/equipos"),
-    ("delete", "/api/partidos/{pid}/equipos"),
     ("post", "/api/partidos/{pid}/cerrar"),
     ("put", "/api/partidos/{pid}/resultado"),
     ("get", "/api/partidos/{pid}/estadisticas"),

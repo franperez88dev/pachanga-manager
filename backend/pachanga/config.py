@@ -56,4 +56,8 @@ def cargar_config():
 
         # --- Equipos (ver equipos.py) ---
         "TOLERANCIA_REBARAJAR": float(os.environ.get("TOLERANCIA_REBARAJAR", "0.5")),
+        # Votos "sí" (de los 10 convocados) para poder rebarajar: "más de 6"
+        "VOTOS_PARA_REBARAJAR": _entero("VOTOS_PARA_REBARAJAR", 7),
+        # Repartos máximos por convocatoria: el inicial + 2 cambios
+        "MAX_REPARTOS": _entero("MAX_REPARTOS", 3),
     }

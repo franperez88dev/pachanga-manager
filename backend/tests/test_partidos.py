@@ -47,10 +47,40 @@ def test_equipos_blanco_y_negro_con_nombres_y_fuerza(client, admin, plantilla, p
     assert p["resultado"] is None
 
 
-def test_rebarajar_cambia_el_reparto(client, admin, plantilla, partido_con_equipos):
+def votar(client, jugadores, pid, cambiar=True):
+    for j in jugadores:
+        r = client.put(f"/api/partidos/{pid}/voto", json={"cambiar": cambiar}, headers=j.headers)
+        assert r.status_code == 200, r.get_json()
+    return r.get_json()["partido"]["votacion"]
+
+
+def rebarajar(client, admin, pid):
+    return client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True}, headers=admin.headers)
+
+
+def test_crear_equipos_solo_una_vez(client, admin, partido_con_equipos):
+    r = client.post(f"/api/partidos/{partido_con_equipos}/equipos", json={}, headers=admin.headers)
+    assert r.status_code == 409
+
+
+def test_rebarajar_exige_7_votos_a_favor(client, admin, plantilla, partido_con_equipos):
     pid = partido_con_equipos
+    convocados = plantilla[:10]
+    assert rebarajar(client, admin, pid).status_code == 409  # sin votos
+    votar(client, convocados[:4], pid, cambiar=False)
+    v = votar(client, convocados[4:10], pid, cambiar=True)  # 6 síes: "más de 6" no se cumple
+    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (6, 4, False)
+    assert rebarajar(client, admin, pid).status_code == 409
+    v = votar(client, convocados[:1], pid, cambiar=True)  # uno cambia de opinión: 7
+    assert (v["votos_si"], v["votos_no"], v["se_puede_rebarajar"]) == (7, 3, True)
+    assert rebarajar(client, admin, pid).status_code == 200
+
+
+def test_maximo_3_repartos_y_votacion_nueva_en_cada_uno(client, admin, plantilla, partido_con_equipos):
+    pid = partido_con_equipos
+    convocados = plantilla[:10]
     # Valoraciones variadas para que haya repartos más y menos igualados
-    for i, j in enumerate(plantilla[:10]):
+    for i, j in enumerate(convocados):
         client.post("/api/valoraciones", json={"valorado_id": j.id, "estrellas": i % 5 + 1},
                     headers=plantilla[11].headers)
 
@@ -58,19 +88,55 @@ def test_rebarajar_cambia_el_reparto(client, admin, plantilla, partido_con_equip
         p = client.get(f"/api/partidos/{pid}", headers=admin.headers).get_json()["partido"]
         return frozenset({frozenset(x["id"] for x in p["equipos"][c]["jugadores"]) for c in ("blanco", "negro")})
 
-    client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers)
-    for _ in range(10):
+    for numero in (2, 3):
         antes = reparto()
-        r = client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True}, headers=admin.headers)
+        votar(client, convocados[:7], pid)
+        r = rebarajar(client, admin, pid)
         assert r.status_code == 200
         assert reparto() != antes
+        v = r.get_json()["partido"]["votacion"]
+        assert v["repartos_hechos"] == numero and v["votos_si"] == 0  # los votos de antes ya no cuentan
+
+    assert v["abierta"] is False
+    r = client.put(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=convocados[0].headers)
+    assert r.status_code == 409
+    assert rebarajar(client, admin, pid).status_code == 409
+
+
+def test_solo_votan_convocados_y_con_equipos(client, admin, plantilla, partido_con_equipos):
+    r = client.put(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": True},
+                   headers=plantilla[11].headers)
+    assert r.status_code == 403
+    r = client.put(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": "si"},
+                   headers=plantilla[0].headers)
+    assert r.status_code == 400
+    sin_equipos = crear_partido(client, admin).get_json()["partido"]["id"]
+    client.put(f"/api/partidos/{sin_equipos}/convocatoria", json={"jugadores": [j.id for j in plantilla[:10]]},
+               headers=admin.headers)
+    assert client.put(f"/api/partidos/{sin_equipos}/voto", json={"cambiar": True},
+                      headers=plantilla[0].headers).status_code == 409
+
+
+def test_cada_uno_ve_su_voto_pero_no_el_de_los_demas(client, plantilla, partido_con_equipos):
+    pid = partido_con_equipos
+    votar(client, plantilla[:1], pid, cambiar=True)
+    votar(client, plantilla[1:2], pid, cambiar=False)
+    v0 = client.get(f"/api/partidos/{pid}", headers=plantilla[0].headers).get_json()["partido"]["votacion"]
+    v2 = client.get(f"/api/partidos/{pid}", headers=plantilla[2].headers).get_json()["partido"]["votacion"]
+    assert v0["mi_voto"] is True and v2["mi_voto"] is None
+    assert (v2["votos_si"], v2["votos_no"]) == (1, 1)
 
 
 def test_formacion_1_2_2_en_cada_equipo(client, admin, partido_con_equipos):
     p = client.get(f"/api/partidos/{partido_con_equipos}", headers=admin.headers).get_json()["partido"]
     for color in ("blanco", "negro"):
-        posiciones = [j["posicion"] for j in p["equipos"][color]["jugadores"]]
+        equipo = p["equipos"][color]
+        posiciones = [j["posicion"] for j in equipo["jugadores"]]
         assert posiciones == ["portero", "defensa", "defensa", "delantero", "delantero"]
+        # Orden en portería: los 5, sin repetir, y empieza el que está de portero
+        assert sorted(j["orden_porteria"] for j in equipo["jugadores"]) == [1, 2, 3, 4, 5]
+        assert sorted(equipo["porteria"]) == sorted(j["id"] for j in equipo["jugadores"])
+        assert equipo["porteria"][0] == equipo["jugadores"][0]["id"]
 
 
 def test_asistencias_son_opcionales(client, admin, plantilla, partido_cerrado):
@@ -83,11 +149,25 @@ def test_asistencias_son_opcionales(client, admin, plantilla, partido_cerrado):
     assert r.status_code == 200
 
 
-def test_volver_a_elegir_deshace_los_equipos_y_mantiene_convocatoria(client, admin, partido_con_equipos):
-    r = client.delete(f"/api/partidos/{partido_con_equipos}/equipos", headers=admin.headers)
-    p = r.get_json()["partido"]
-    assert p["equipos"] is None and p["equipos_generados"] is False
-    assert p["num_convocados"] == 10
+def test_volver_a_elegir_con_los_mismos_10_no_cambia_los_equipos(client, admin, plantilla, partido_con_equipos):
+    """Así "Volver a elegir" no sirve para saltarse la votación."""
+    pid = partido_con_equipos
+    antes = client.get(f"/api/partidos/{pid}", headers=admin.headers).get_json()["partido"]["equipos"]
+    r = client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": [j.id for j in reversed(plantilla[:10])]},
+                   headers=admin.headers)
+    assert r.get_json()["partido"]["equipos"] == antes
+
+
+def test_cambiar_un_convocado_empieza_de_cero(client, admin, plantilla, partido_con_equipos):
+    pid = partido_con_equipos
+    votar(client, plantilla[:7], pid)
+    nuevos = [j.id for j in plantilla[:9]] + [plantilla[11].id]
+    p = client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": nuevos},
+                   headers=admin.headers).get_json()["partido"]
+    assert p["equipos"] is None and p["votacion"] is None and p["num_convocados"] == 10
+    r = client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers)
+    v = r.get_json()["partido"]["votacion"]
+    assert (v["repartos_hechos"], v["votos_si"]) == (1, 0)
 
 
 # ------------------------------------------------------------ cerrar con resultado
