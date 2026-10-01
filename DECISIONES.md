@@ -39,7 +39,7 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - Tolerancia de "Rebarajar": 0,5 puntos sobre el mejor reparto posible (explicado en `backend/pachanga/equipos.py`).
 - **Vista de equipos sobre una pista de fútbol sala en horizontal** (fondo azul `#002db3`; Nevados a la izquierda y Sombras a la derecha), en formación **portero – 2 defensas – 2 delanteros**. Los defensas van al borde de su área y los delanteros, cerca del círculo central en su propio campo. Cada jugador se ve con su avatar redondo, su dorsal y su mote debajo.
 - Quién juega de portero, defensa o delantero se sortea al hacer los equipos y se guarda, para que todos vean la misma alineación.
-- **Orden en portería**: al hacer los equipos se sortea en cada equipo el orden de los 5 en la portería (cambio cada 5 minutos). Empieza el que sale de portero en la pista.
+- **Orden en portería**: al hacer los equipos se sortea en cada equipo el orden de los 5 en la portería. Empieza el que sale de portero en la pista. Se muestra solo la lista numerada (sin minutos ni explicaciones), con la columna de Sombras F.C. en fondo negro.
 
 ## Votación para rebarajar (01/10/2026; sustituye al "Rebarajar" libre)
 - El admin hace los equipos **una sola vez**.

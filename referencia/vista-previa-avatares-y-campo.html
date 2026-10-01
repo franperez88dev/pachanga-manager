@@ -80,16 +80,17 @@
 
   /* Orden en portería */
   .porteria{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .porteria .col{padding:10px;border-radius:12px}
+  .porteria .col.negro{background:#20262b;color:#f2f4f6}  /* Sombras F.C. en negro para distinguirlo */
   .porteria .col h3{margin:0 0 8px;font:700 14px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px}
   .porteria ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-  .porteria li{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+  .porteria li{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
   .porteria .turno{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:700 12px 'Barlow Condensed',sans-serif;
     background:var(--surface-2);color:var(--muted);flex:0 0 auto}
-  .porteria li:first-child .turno{background:var(--gold);color:#fff}
+  .porteria .col.negro .turno{background:rgba(255,255,255,.14);color:#cfd6dc}
+  .porteria li:first-child .turno,.porteria .col.negro li:first-child .turno{background:var(--gold);color:#fff}
   .porteria .avatar{width:26px;height:26px}
-  .porteria .min{margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
   .porteria .nom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
-  .porteria li{gap:6px}
 
   /* Votación */
   .votacion h3{margin:0 0 4px;font:700 18px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.4px}
@@ -134,8 +135,7 @@
   <p class="pista-pie">📱 Gira el móvil para ver la pista más grande</p>
 
   <h2>3 · Orden en portería</h2>
-  <div class="card">
-    <p class="sub" style="margin:0 0 12px">Cambio de portero cada 5 minutos. Al acabar la vuelta, vuelve a empezar el primero.</p>
+  <div class="card" style="padding:10px">
     <div class="porteria" id="porteria"></div>
   </div>
 
@@ -397,12 +397,11 @@ function fichaJugador(j, color) {
     <span class="mote">${j.mote}</span></div>`;
 }
 
-/* Orden en portería: empieza el que está de portero, el resto sorteado. Cambio cada 5 minutos. */
-const MINUTOS_TURNO = 5;
-function columnaPorteria(titulo, jugadores) {
-  return `<div class="col"><h3>${titulo}</h3><ol>${jugadores.map((j, i) =>
+/* Orden en portería: empieza el que está de portero, el resto sorteado. */
+function columnaPorteria(titulo, color, jugadores) {
+  return `<div class="col ${color}"><h3>${titulo}</h3><ol>${jugadores.map((j, i) =>
     `<li><span class="turno">${i + 1}</span><span class="avatar">${avatarSvg(j.avatar)}</span>
-      <span class="nom">${j.mote}</span><span class="min">${i * MINUTOS_TURNO}'–${(i + 1) * MINUTOS_TURNO}'</span></li>`
+      <span class="nom">${j.mote}</span></li>`
   ).join("")}</ol></div>`;
 }
 function ordenPorteria(equipo) {
@@ -423,7 +422,8 @@ function pintarPista() {
     posicionesDe(blancos, false).map(j => fichaJugador(j, "blanco")).join("") +
     posicionesDe(negros, true).map(j => fichaJugador(j, "negro")).join("");
   document.getElementById("porteria").innerHTML =
-    columnaPorteria("Nevados C.F.", ordenPorteria(blancos)) + columnaPorteria("Sombras F.C.", ordenPorteria(negros));
+    columnaPorteria("Nevados C.F.", "blanco", ordenPorteria(blancos)) +
+    columnaPorteria("Sombras F.C.", "negro", ordenPorteria(negros));
   const fb = 14 + Math.random() * 2, fn = 14 + Math.random() * 2;
   document.getElementById("f-blanco").textContent = fb.toFixed(1).replace(".", ",");
   document.getElementById("f-negro").textContent = fn.toFixed(1).replace(".", ",");
