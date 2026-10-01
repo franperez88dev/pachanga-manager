@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pachanga · Vista previa de avatares y campo</title>
+<!-- Solo en esta vista previa las fuentes vienen de Google; en la app irán empaquetadas -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f1f4ee; --surface:#fff; --surface-2:#e9eee3; --border:#d7dfcd; --text:#16211a; --muted:#5c6b5f;
+    --pitch:#0f7a4d; --gold:#d99a12; --pista:#002db3;
+    --shadow:0 1px 2px rgba(20,40,25,.06),0 6px 20px rgba(20,40,25,.06); --radius:14px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0d1411; --surface:#161f1a; --surface-2:#1f2a23; --border:#2b382f; --text:#e9efe8; --muted:#93a596;
+      --pitch:#3ac384; --gold:#f0b73a; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35)}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Barlow',system-ui,sans-serif;line-height:1.45}
+  .app{max-width:520px;margin:0 auto;padding:16px 16px 48px}
+  h1{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:24px;margin:4px 0 2px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  h2{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-size:16px;color:var(--muted);margin:26px 0 10px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+
+  /* ---------- Avatar redondo ---------- */
+  .avatar{border-radius:50%;overflow:hidden;flex:0 0 auto;display:block}
+  .avatar svg{display:block;width:100%;height:100%}
+
+  /* ---------- Editor ---------- */
+  .preview{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:6px}
+  .preview .avatar{width:132px;height:132px;box-shadow:0 0 0 4px var(--surface),0 0 0 6px var(--pitch)}
+  .btn{border:0;border-radius:10px;font:600 15px 'Barlow',sans-serif;padding:11px 18px;cursor:pointer}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--pitch);color:#fff}
+  @media (prefers-color-scheme:dark){.btn-primary{color:#08130d}}
+  .btn-ghost{background:var(--surface-2);color:var(--text)}
+  .fila{margin-top:14px}
+  .fila .lbl{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:100px;padding:7px 12px;font:600 13px 'Barlow',sans-serif;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--pitch);border-color:var(--pitch);color:#fff}
+  .swatch{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);cursor:pointer;padding:0}
+  .swatch[aria-pressed="true"]{outline:3px solid var(--pitch);outline-offset:2px}
+  .especiales{display:flex;gap:10px;flex-wrap:wrap}
+  .especial{border:2px solid transparent;border-radius:50%;padding:0;background:none;cursor:pointer}
+  .especial .avatar{width:56px;height:56px}
+  .especial[aria-pressed="true"]{border-color:var(--pitch)}
+  details{margin-top:14px;font-size:12px;color:var(--muted)}
+  pre{white-space:pre-wrap;word-break:break-all;background:var(--surface-2);padding:8px;border-radius:8px}
+
+  /* ---------- Equipos sobre la pista ---------- */
+  .equipo-barra{display:flex;align-items:center;gap:10px;padding:10px 12px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+  .equipo-barra img{width:34px;height:34px;object-fit:contain}
+  .equipo-barra .nombre{font-weight:700;font-size:17px;flex:1}
+  .equipo-barra .fuerza{font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+  .barra-negro{background:#20262b;color:#f2f4f6;border-radius:var(--radius) var(--radius) 0 0}
+  .barra-blanco{background:#dfe3e6;color:#20262b;border-radius:0 0 var(--radius) var(--radius)}
+  .pista{position:relative;width:100%;aspect-ratio:220/428;background:var(--pista);overflow:hidden}
+  .pista > svg{position:absolute;inset:0;width:100%;height:100%}
+  .jugador{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:74px}
+  .jugador .marco{position:relative}
+  .jugador .avatar{width:clamp(46px,13vw,58px);height:clamp(46px,13vw,58px);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+  .jugador.negro .avatar{border-color:#111}
+  .jugador .dorsal{position:absolute;right:-6px;bottom:-4px;min-width:21px;height:21px;padding:0 4px;border-radius:100px;
+    display:grid;place-items:center;font:700 12px 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums;
+    background:#fff;color:#111;border:2px solid #111}
+  .jugador.negro .dorsal{background:#111;color:#fff;border-color:#fff}
+  .jugador .mote{margin-top:3px;max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font:700 13px 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+  .diferencia{text-align:center;font-size:13px;color:var(--muted);margin:10px 0 12px}
+  .acciones{display:flex;gap:8px;justify-content:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Vista previa</h1>
+  <p class="sub">Solo para ver el aspecto antes de la Fase 2: los datos son de mentira y nada se guarda.</p>
+
+  <h2>1 · Elige tu avatar</h2>
+  <div class="card">
+    <div class="preview">
+      <div class="avatar" id="grande"></div>
+      <button class="btn btn-primary" id="aleatorio">🎲 Aleatorio</button>
+    </div>
+    <div id="controles"></div>
+    <details><summary>Lo que se enviaría al backend</summary><pre id="json"></pre></details>
+  </div>
+
+  <h2>2 · Equipos sobre la pista</h2>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="equipo-barra barra-negro">
+      <img src="escudos/sombras_FC2.png" alt=""><span class="nombre">Sombras F.C.</span><span class="fuerza" id="f-negro"></span>
+    </div>
+    <div class="pista" id="pista"></div>
+    <div class="equipo-barra barra-blanco">
+      <img src="escudos/nevados_CF.png" alt=""><span class="nombre">Nevados C.F.</span><span class="fuerza" id="f-blanco"></span>
+    </div>
+  </div>
+  <p class="diferencia" id="diferencia"></p>
+  <div class="acciones">
+    <button class="btn btn-ghost">‹ Volver a elegir</button>
+    <button class="btn btn-primary" id="rebarajar">↻ Rebarajar</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Catálogo: copia de lo que devuelve GET /api/avatares
+   ===================================================================== */
+const CATALOGO = {
+  pieles: ["#fde0c8", "#f1c27d", "#e0ac69", "#c68642", "#8d5524", "#5c3a21"],
+  colores_pelo: ["#1c1c1c", "#3b2417", "#6a4027", "#a0632f", "#e3c16f", "#b5482a", "#9e9e9e", "#f2f2f2", "#2f6fdb", "#e0408a"],
+  peinados: ["calvo", "rapado", "corto", "tupe", "rizos", "melena", "cresta"],
+  barbas: ["ninguna", "bigote", "perilla", "corta", "completa"],
+  especiales: [{id:"alien",nombre:"Alien"},{id:"perro",nombre:"Perro"},{id:"gato",nombre:"Gato"},
+               {id:"pepino",nombre:"Pepino"},{id:"calabaza",nombre:"Calabaza"}],
+};
+const NOMBRE_PEINADO = {calvo:"Calvo", rapado:"Rapado", corto:"Corto", tupe:"Tupé", rizos:"Rizos", melena:"Melena", cresta:"Cresta"};
+const NOMBRE_BARBA = {ninguna:"Sin barba", bigote:"Bigote", perilla:"Perilla", corta:"De 3 días", completa:"Completa"};
+
+/* =====================================================================
+   Dibujo de avatares (SVG, cuadrado de 100x100; el círculo lo pone el CSS)
+   ===================================================================== */
+function oscurecer(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v * (1 - f)));
+  return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
+const PELO_DETRAS = {
+  melena: p => `<path d="M27,44 C24,66 27,84 33,96 L67,96 C73,84 76,66 73,44 Z" fill="${p}"/>`,
+};
+const PELO = {
+  calvo: () => `<ellipse cx="43" cy="31" rx="6" ry="2.6" fill="#fff" opacity=".35"/>`,
+  rapado: p => `<path d="M31,45 C30,28 40,23 50,23 C60,23 70,28 69,45 C66,36 60,32 50,32 C40,32 34,36 31,45 Z" fill="${p}" opacity=".6"/>`,
+  corto: p => `<path d="M30,47 C27,26 39,20 50,20 C61,20 73,26 70,47 C68,39 66,34 62,31 C56,34 44,34 38,31 C34,34 32,39 30,47 Z" fill="${p}"/>`,
+  tupe: p => `<path d="M30,47 C27,29 34,21 44,19 C47,11 62,9 66,18 C71,22 73,31 70,47 C68,39 66,34 62,31 C56,34 44,34 38,31 C34,34 32,39 30,47 Z" fill="${p}"/>`,
+  rizos: p => [[33,40],[36,31],[43,25],[51,23],[59,25],[65,31],[68,40],[30,48],[70,48],[47,30],[55,30]]
+                .map(([x,y]) => `<circle cx="${x}" cy="${y}" r="7" fill="${p}"/>`).join(""),
+  melena: p => `<path d="M28,52 C25,26 39,19 50,19 C61,19 75,26 72,52 C70,41 66,34 60,30 C53,36 42,36 37,31 C33,36 30,43 28,52 Z" fill="${p}"/>`,
+  cresta: p => `<path d="M31,45 C30,30 40,25 50,25 C60,25 70,30 69,45 C66,37 60,34 50,34 C40,34 34,37 31,45 Z" fill="${p}" opacity=".35"/>
+                <path d="M44,35 L41,22 L47,26 L47,13 L52,23 L55,11 L56,24 L61,19 L57,35 Z" fill="${p}"/>`,
+};
+const BIGOTE = c => `<path d="M40,57.5 Q45,53.5 50,55.5 Q55,53.5 60,57.5 Q55,60 50,58.3 Q45,60 40,57.5 Z" fill="${c}"/>`;
+const MANDIBULA = "M31,47 C31,64 38,75 50,76 C62,75 69,64 69,47 C66,54 63,57 57,57 L43,57 C37,57 34,54 31,47 Z";
+const BARBA = {
+  ninguna: () => "",
+  bigote: c => BIGOTE(c),
+  perilla: c => BIGOTE(c) + `<path d="M44,64 Q50,62 56,64 Q55,72.5 50,73.5 Q45,72.5 44,64 Z" fill="${c}"/>`,
+  corta: c => `<path d="${MANDIBULA}" fill="${c}" opacity=".38"/>`,
+  completa: c => `<path d="${MANDIBULA}" fill="${c}"/>` + BIGOTE(c),
+};
+
+function persona(a, camiseta) {
+  const piel = a.piel, sombra = oscurecer(a.piel, .18);
+  const hueco = a.barba === "completa" || a.barba === "perilla"
+    ? `<ellipse cx="50" cy="61" rx="7.5" ry="3.2" fill="${piel}"/>` : "";  // para que la boca se vea sobre la barba
+  return `
+    <rect width="100" height="100" fill="#cfe3d6"/>
+    ${(PELO_DETRAS[a.peinado] || (() => ""))(a.color_pelo)}
+    <path d="M12,100 Q14,80 36,76 L64,76 Q86,80 88,100 Z" fill="${camiseta}"/>
+    <path d="M42,76 L50,84 L58,76" fill="none" stroke="${oscurecer(camiseta, .25)}" stroke-width="2"/>
+    <rect x="43" y="62" width="14" height="16" rx="5" fill="${sombra}"/>
+    <circle cx="31" cy="49" r="5" fill="${piel}"/><circle cx="69" cy="49" r="5" fill="${piel}"/>
+    <ellipse cx="50" cy="47" rx="19" ry="22" fill="${piel}"/>
+    ${PELO[a.peinado](a.color_pelo)}
+    <path d="M38,40.5 h8 M54,40.5 h8" stroke="${a.peinado === "calvo" ? sombra : a.color_pelo}" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="42" cy="47" r="2.4" fill="#1d1d1d"/><circle cx="58" cy="47" r="2.4" fill="#1d1d1d"/>
+    <circle cx="42.8" cy="46.2" r=".8" fill="#fff"/><circle cx="58.8" cy="46.2" r=".8" fill="#fff"/>
+    <path d="M50,49 q-3,5.5 0,6.5" stroke="${sombra}" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    ${BARBA[a.barba](a.color_barba)}
+    ${hueco}
+    <path d="M44,60.5 q6,4.5 12,0" stroke="#7a3b2e" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+}
+
+const ESPECIAL = {
+  alien: () => `
+    <rect width="100" height="100" fill="#1b1f3b"/>
+    <circle cx="15" cy="18" r="1.2" fill="#fff"/><circle cx="84" cy="26" r="1" fill="#fff"/><circle cx="76" cy="84" r="1.3" fill="#fff"/><circle cx="20" cy="78" r="1" fill="#fff"/>
+    <path d="M43,24 L36,9 M57,24 L64,9" stroke="#7ed957" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="36" cy="9" r="3.5" fill="#f5e663"/><circle cx="64" cy="9" r="3.5" fill="#f5e663"/>
+    <path d="M50,20 C74,20 80,40 73,57 C67,73 57,82 50,82 C43,82 33,73 27,57 C20,40 26,20 50,20 Z" fill="#7ed957"/>
+    <ellipse cx="39" cy="50" rx="7.5" ry="12" transform="rotate(28 39 50)" fill="#111"/>
+    <ellipse cx="61" cy="50" rx="7.5" ry="12" transform="rotate(-28 61 50)" fill="#111"/>
+    <circle cx="37" cy="45" r="2" fill="#fff"/><circle cx="59" cy="45" r="2" fill="#fff"/>
+    <path d="M45,70 q5,3 10,0" stroke="#2d6b18" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+  perro: () => `
+    <rect width="100" height="100" fill="#ffe6b3"/>
+    <ellipse cx="25" cy="50" rx="10" ry="22" transform="rotate(18 25 50)" fill="#6b3e1f"/>
+    <ellipse cx="75" cy="50" rx="10" ry="22" transform="rotate(-18 75 50)" fill="#6b3e1f"/>
+    <ellipse cx="50" cy="50" rx="25" ry="27" fill="#c98b4f"/>
+    <ellipse cx="60" cy="42" rx="9" ry="8" fill="#8a5428"/>
+    <ellipse cx="50" cy="64" rx="15" ry="12" fill="#f0d2a8"/>
+    <circle cx="41" cy="44" r="3" fill="#1d1d1d"/><circle cx="60" cy="43" r="3" fill="#1d1d1d"/>
+    <circle cx="42" cy="43" r="1" fill="#fff"/><circle cx="61" cy="42" r="1" fill="#fff"/>
+    <ellipse cx="50" cy="58" rx="5.5" ry="4" fill="#1d1d1d"/>
+    <path d="M50,62 L50,66 M43,66 q7,5 14,0" stroke="#1d1d1d" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M47,68 q3,9 6,0 Z" fill="#ef6f8a"/>`,
+  gato: () => `
+    <rect width="100" height="100" fill="#d9ecff"/>
+    <path d="M27,40 L30,14 L47,30 Z M73,40 L70,14 L53,30 Z" fill="#8f8f8f"/>
+    <path d="M31,34 L32,20 L42,29 Z M69,34 L68,20 L58,29 Z" fill="#f4a6b7"/>
+    <ellipse cx="50" cy="54" rx="26" ry="24" fill="#a6a6a6"/>
+    <path d="M44,32 L46,40 M50,31 L50,40 M56,32 L54,40" stroke="#7b7b7b" stroke-width="2" stroke-linecap="round"/>
+    <ellipse cx="40" cy="51" rx="5" ry="6" fill="#9be15d"/><ellipse cx="60" cy="51" rx="5" ry="6" fill="#9be15d"/>
+    <ellipse cx="40" cy="51" rx="1.6" ry="5" fill="#111"/><ellipse cx="60" cy="51" rx="1.6" ry="5" fill="#111"/>
+    <path d="M47,60 L53,60 L50,63.5 Z" fill="#f4a6b7"/>
+    <path d="M50,63.5 q-3,4 -6,1 M50,63.5 q3,4 6,1" stroke="#333" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M36,61 L20,58 M36,64 L21,66 M64,61 L80,58 M64,64 L79,66" stroke="#555" stroke-width="1" stroke-linecap="round"/>`,
+  pepino: () => `
+    <rect width="100" height="100" fill="#fff5d6"/>
+    <path d="M48,14 q4,-6 8,-3" stroke="#6b4b1d" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <rect x="31" y="14" width="38" height="78" rx="19" fill="#4c9a2a"/>
+    <path d="M40,22 L40,84 M50,18 L50,88 M60,22 L60,84" stroke="#6fbf45" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+    <circle cx="37" cy="30" r="1.6" fill="#2f6b17"/><circle cx="63" cy="36" r="1.6" fill="#2f6b17"/><circle cx="36" cy="72" r="1.6" fill="#2f6b17"/><circle cx="64" cy="78" r="1.6" fill="#2f6b17"/>
+    <circle cx="43" cy="46" r="4" fill="#fff"/><circle cx="57" cy="46" r="4" fill="#fff"/>
+    <circle cx="44" cy="47" r="2" fill="#1d1d1d"/><circle cx="58" cy="47" r="2" fill="#1d1d1d"/>
+    <path d="M43,57 q7,6 14,0" stroke="#1d1d1d" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="38" cy="54" rx="3" ry="1.8" fill="#f28b8b" opacity=".6"/><ellipse cx="62" cy="54" rx="3" ry="1.8" fill="#f28b8b" opacity=".6"/>`,
+  calabaza: () => `
+    <rect width="100" height="100" fill="#2b1d3a"/>
+    <path d="M50,24 q-2,-9 5,-12" stroke="#3f7a2a" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <ellipse cx="32" cy="57" rx="16" ry="27" fill="#e2761b"/><ellipse cx="68" cy="57" rx="16" ry="27" fill="#e2761b"/>
+    <ellipse cx="50" cy="57" rx="20" ry="30" fill="#f28c28"/>
+    <path d="M40,30 q-5,27 0,54 M60,30 q5,27 0,54" stroke="#c9631a" stroke-width="1.5" fill="none"/>
+    <path d="M36,50 L42,42 L47,50 Z M53,50 L58,42 L64,50 Z" fill="#ffd34d"/>
+    <path d="M47,58 L50,54 L53,58 Z" fill="#ffd34d"/>
+    <path d="M33,64 L38,68 L43,64 L48,69 L53,64 L58,69 L63,64 L67,64 Q60,78 50,78 Q40,78 33,64 Z" fill="#ffd34d"/>`,
+};
+
+/** Devuelve el SVG del avatar. `camiseta`: color de la camiseta (el del equipo en la pista). */
+function avatarSvg(a, camiseta = "#0f7a4d") {
+  const dentro = a.tipo === "especial" ? ESPECIAL[a.id]() : persona(a, camiseta);
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${dentro}</svg>`;
+}
+
+/* =====================================================================
+   Aleatorio
+   ===================================================================== */
+const elegir = lista => lista[Math.floor(Math.random() * lista.length)];
+function avatarAleatorio() {
+  if (Math.random() < 0.2) return { tipo: "especial", id: elegir(CATALOGO.especiales).id };  // 1 de cada 5: sorpresa
+  const raros = Math.random() < 0.1;  // de vez en cuando, pelo azul o rosa
+  const pelo = elegir(raros ? CATALOGO.colores_pelo : CATALOGO.colores_pelo.slice(0, 8));
+  return { tipo: "persona", piel: elegir(CATALOGO.pieles), peinado: elegir(CATALOGO.peinados),
+           color_pelo: pelo, barba: elegir(CATALOGO.barbas), color_barba: pelo };
+}
+
+/* =====================================================================
+   Editor
+   ===================================================================== */
+let actual = { tipo: "persona", piel: "#e0ac69", peinado: "tupe", color_pelo: "#3b2417", barba: "perilla", color_barba: "#3b2417" };
+let ultimaPersona = { ...actual };
+
+function filaChips(etiqueta, campo, opciones, nombres) {
+  return `<div class="fila"><div class="lbl">${etiqueta}</div><div class="chips">${opciones.map(o =>
+    `<button class="chip" data-campo="${campo}" data-valor="${o}" aria-pressed="${actual.tipo === "persona" && actual[campo] === o}">${nombres[o]}</button>`
+  ).join("")}</div></div>`;
+}
+function filaColores(etiqueta, campo, colores) {
+  return `<div class="fila"><div class="lbl">${etiqueta}</div><div class="chips">${colores.map(c =>
+    `<button class="swatch" style="background:${c}" data-campo="${campo}" data-valor="${c}" aria-label="${c}" aria-pressed="${actual.tipo === "persona" && actual[campo] === c}"></button>`
+  ).join("")}</div></div>`;
+}
+function pintarEditor() {
+  document.getElementById("grande").innerHTML = avatarSvg(actual);
+  document.getElementById("json").textContent = JSON.stringify({ avatar: actual }, null, 1);
+  document.getElementById("controles").innerHTML =
+    filaColores("Piel", "piel", CATALOGO.pieles) +
+    filaChips("Peinado", "peinado", CATALOGO.peinados, NOMBRE_PEINADO) +
+    filaColores("Color del pelo", "color_pelo", CATALOGO.colores_pelo) +
+    filaChips("Barba", "barba", CATALOGO.barbas, NOMBRE_BARBA) +
+    filaColores("Color de la barba", "color_barba", CATALOGO.colores_pelo) +
+    `<div class="fila"><div class="lbl">O un avatar especial</div><div class="especiales">${CATALOGO.especiales.map(e =>
+      `<button class="especial" data-especial="${e.id}" title="${e.nombre}" aria-pressed="${actual.tipo === "especial" && actual.id === e.id}">
+        <span class="avatar">${avatarSvg({ tipo: "especial", id: e.id })}</span></button>`).join("")}</div></div>`;
+}
+document.getElementById("controles").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.especial) {
+    actual = { tipo: "especial", id: b.dataset.especial };
+  } else {
+    // Si venía de un especial, retomamos el último muñeco para no perder lo elegido
+    if (actual.tipo !== "persona") actual = { ...ultimaPersona };
+    actual = { ...actual, [b.dataset.campo]: b.dataset.valor };
+    ultimaPersona = { ...actual };
+  }
+  pintarEditor();
+});
+document.getElementById("aleatorio").addEventListener("click", () => {
+  actual = avatarAleatorio();
+  if (actual.tipo === "persona") ultimaPersona = { ...actual };
+  pintarEditor();
+});
+
+/* =====================================================================
+   Pista de fútbol sala (40 x 20 m). Coordenadas en decímetros:
+   x de 0 a 200 (ancho), y de 0 a 400 (largo). Margen alrededor para las porterías.
+   ===================================================================== */
+const VB = { x: -10, y: -14, w: 220, h: 428 };
+const L = `stroke="#fff" stroke-width="1.6" fill="none" opacity=".9"`;
+const PISTA_SVG = `
+<svg viewBox="${VB.x} ${VB.y} ${VB.w} ${VB.h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  ${Array.from({ length: 8 }, (_, i) => `<rect x="0" y="${i * 50}" width="200" height="25" fill="#fff" opacity=".035"/>`).join("")}
+  <rect x="0" y="0" width="200" height="400" ${L}/>
+  <line x1="0" y1="200" x2="200" y2="200" ${L}/>
+  <circle cx="100" cy="200" r="30" ${L}/>
+  <circle cx="100" cy="200" r="1.8" fill="#fff"/>
+  <path d="M24.2,0 A60,60 0 0 0 84.2,60 L115.8,60 A60,60 0 0 0 175.8,0" ${L}/>
+  <path d="M24.2,400 A60,60 0 0 1 84.2,340 L115.8,340 A60,60 0 0 1 175.8,400" ${L}/>
+  <circle cx="100" cy="60" r="1.6" fill="#fff"/><circle cx="100" cy="340" r="1.6" fill="#fff"/>
+  <circle cx="100" cy="100" r="1.6" fill="#fff"/><circle cx="100" cy="300" r="1.6" fill="#fff"/>
+  <path d="M0,2.5 A2.5,2.5 0 0 0 2.5,0 M197.5,0 A2.5,2.5 0 0 0 200,2.5 M0,397.5 A2.5,2.5 0 0 1 2.5,400 M197.5,400 A2.5,2.5 0 0 1 200,397.5" ${L}/>
+  <rect x="84.2" y="-9" width="31.6" height="9" ${L}/>
+  <rect x="84.2" y="400" width="31.6" height="9" ${L}/>
+</svg>`;
+
+// Formación 1-2-2 del equipo de ABAJO (Blanco). El de arriba (Negro) es el espejo.
+const FORMACION = {
+  portero:   [{ x: 100, y: 374 }],
+  defensa:   [{ x: 52, y: 322 }, { x: 148, y: 322 }],   // al borde de su área (empieza en y=340)
+  delantero: [{ x: 70, y: 242 }, { x: 130, y: 242 }],   // junto al círculo central, en su campo
+};
+function posicionesDe(jugadores, arriba) {
+  const usados = { portero: 0, defensa: 0, delantero: 0 };
+  return jugadores.map(j => {
+    const p = FORMACION[j.posicion][usados[j.posicion]++];
+    const y = arriba ? 400 - p.y : p.y;
+    return { ...j, left: (p.x - VB.x) / VB.w * 100, top: (y - VB.y) / VB.h * 100 };
+  });
+}
+function fichaJugador(j, color) {
+  const camiseta = color === "blanco" ? "#f4f4f4" : "#1c1c1c";
+  return `<div class="jugador ${color}" style="left:${j.left}%;top:${j.top}%">
+    <div class="marco"><span class="avatar">${avatarSvg(j.avatar, camiseta)}</span><span class="dorsal">${j.dorsal}</span></div>
+    <span class="mote">${j.mote}</span></div>`;
+}
+
+/* Datos de mentira para la vista previa */
+const DEMO = ["Fran", "Feragi", "Chuti", "El Tanke", "Rulo", "Kike", "Nino", "Josemi", "Payo", "Sergi"]
+  .map((mote, i) => ({ mote, dorsal: i + 1, avatar: avatarAleatorio() }));
+const ORDEN = ["portero", "defensa", "defensa", "delantero", "delantero"];
+
+function pintarPista() {
+  const mezcla = [...DEMO].sort(() => Math.random() - .5);
+  const blancos = mezcla.slice(0, 5).map((j, i) => ({ ...j, posicion: ORDEN[i] }));
+  const negros = mezcla.slice(5).map((j, i) => ({ ...j, posicion: ORDEN[i] }));
+  document.getElementById("pista").innerHTML = PISTA_SVG +
+    posicionesDe(negros, true).map(j => fichaJugador(j, "negro")).join("") +
+    posicionesDe(blancos, false).map(j => fichaJugador(j, "blanco")).join("");
+  const fb = 14 + Math.random() * 2, fn = 14 + Math.random() * 2;
+  document.getElementById("f-blanco").textContent = fb.toFixed(1).replace(".", ",");
+  document.getElementById("f-negro").textContent = fn.toFixed(1).replace(".", ",");
+  document.getElementById("diferencia").innerHTML =
+    `Diferencia de fuerza: <b>${Math.abs(fb - fn).toFixed(1).replace(".", ",")} pts</b>`;
+}
+document.getElementById("rebarajar").addEventListener("click", pintarPista);
+
+pintarEditor();
+pintarPista();
+</script>
+</body>
+</html>
