@@ -4,6 +4,7 @@ import re
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+from .avatares import persona_aleatoria, validar_avatar
 from .equipos import medias_con_provisional
 from .errores import ErrorApi
 from .extensions import db
@@ -44,12 +45,13 @@ def _mote_cogido(normalizado):
     return User.query.filter_by(mote_normalizado=normalizado).first() is not None
 
 
-def crear_usuario(mote, nombre_real=None, rol="jugador", estado="pendiente"):
-    """Crea el usuario con el dorsal libre más bajo y un PIN nuevo.
+def crear_usuario(mote, nombre_real=None, rol="jugador", estado="pendiente", avatar=None):
+    """Crea el usuario con el dorsal libre más bajo y un PIN nuevo. Sin avatar, le toca uno al azar.
     Devuelve (usuario, pin): el PIN en claro solo existe en este momento."""
     mote = validar_mote(mote)
     normalizado = normalizar_mote(mote)
     nombre_real = validar_nombre_real(nombre_real)
+    avatar = validar_avatar(avatar) if avatar is not None else persona_aleatoria()
     if _mote_cogido(normalizado):
         raise ErrorApi(409, "Ese mote ya está cogido. Prueba con otro")
 
@@ -58,7 +60,7 @@ def crear_usuario(mote, nombre_real=None, rol="jugador", estado="pendiente"):
     # la restricción UNIQUE salta en la segunda, y esta reintenta con el siguiente.
     for _ in range(5):
         usuario = User(mote=mote, mote_normalizado=normalizado, nombre_real=nombre_real,
-                       dorsal=dorsal_libre(), pin_hash=hash_pin(pin), rol=rol, estado=estado)
+                       dorsal=dorsal_libre(), pin_hash=hash_pin(pin), rol=rol, estado=estado, avatar=avatar)
         try:
             with db.session.begin_nested():  # "punto de guardado": si falla, solo se deshace esto
                 db.session.add(usuario)
@@ -182,6 +184,7 @@ def borrar_usuario(usuario):
 def deshacer_equipos(partido):
     for mp in partido.jugadores:
         mp.equipo = None
+        mp.posicion = None
     partido.equipos_generados = False
     partido.fuerza_blanco = None
     partido.fuerza_negro = None

@@ -1,5 +1,9 @@
 """Un jugador (o alguien sin sesión) no puede hacer nada de admin ni tocar datos ajenos."""
+import io
+
 import pytest
+
+from test_avatares import PNG_MINIMO
 
 # (método, ruta) de TODAS las acciones de admin. {pid}, {uid} y {rid} se rellenan en el test.
 ACCIONES_ADMIN = [
@@ -22,6 +26,8 @@ ACCIONES_ADMIN = [
     ("put", "/api/partidos/{pid}/resultado"),
     ("get", "/api/partidos/{pid}/estadisticas"),
     ("put", "/api/partidos/{pid}/estadisticas"),
+    ("post", "/api/admin/avatares"),
+    ("delete", "/api/admin/avatares/{aid}"),
 ]
 
 
@@ -32,7 +38,8 @@ def test_la_lista_incluye_todas_las_rutas_de_admin(app):
         if getattr(app.view_functions[regla.endpoint], "solo_admin", False):
             for metodo in regla.methods - {"HEAD", "OPTIONS"}:
                 ruta = regla.rule.replace("<int:pid>", "{pid}").replace("<int:uid>", "{uid}")
-                en_la_app.add((metodo.lower(), ruta.replace("<int:rid>", "{rid}")))
+                ruta = ruta.replace("<int:rid>", "{rid}").replace("<int:aid>", "{aid}")
+                en_la_app.add((metodo.lower(), ruta))
     assert en_la_app == set(ACCIONES_ADMIN)
 
 
@@ -43,7 +50,11 @@ def escenario(client, admin, plantilla, partido_cerrado):
     autor = plantilla[0]
     r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 2, "asistencias": 1}, headers=autor.headers)
     assert r.status_code == 201
-    return {"pid": pid, "uid": plantilla[1].id, "rid": r.get_json()["reporte"]["id"]}
+    a = client.post("/api/admin/avatares", data={"nombre": "Bicho", "imagen": (io.BytesIO(PNG_MINIMO), "b.png")},
+                    headers=admin.headers)
+    assert a.status_code == 201
+    aid = a.get_json()["avatar"]["imagen"].rsplit("/", 1)[1]
+    return {"pid": pid, "uid": plantilla[1].id, "rid": r.get_json()["reporte"]["id"], "aid": aid}
 
 
 @pytest.mark.parametrize("metodo,ruta", ACCIONES_ADMIN)

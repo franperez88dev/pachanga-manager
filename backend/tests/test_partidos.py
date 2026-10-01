@@ -66,6 +66,23 @@ def test_rebarajar_cambia_el_reparto(client, admin, plantilla, partido_con_equip
         assert reparto() != antes
 
 
+def test_formacion_1_2_2_en_cada_equipo(client, admin, partido_con_equipos):
+    p = client.get(f"/api/partidos/{partido_con_equipos}", headers=admin.headers).get_json()["partido"]
+    for color in ("blanco", "negro"):
+        posiciones = [j["posicion"] for j in p["equipos"][color]["jugadores"]]
+        assert posiciones == ["portero", "defensa", "defensa", "delantero", "delantero"]
+
+
+def test_asistencias_son_opcionales(client, admin, plantilla, partido_cerrado):
+    """De momento la app no usa asistencias: se puede apuntar sin ellas."""
+    r = client.post(f"/api/partidos/{partido_cerrado}/reportes", json={"goles": 1}, headers=plantilla[0].headers)
+    assert r.status_code == 201 and r.get_json()["reporte"]["asistencias"] == 0
+    blanco = equipos_de(client, admin, partido_cerrado)[0][0]
+    r = client.put(f"/api/partidos/{partido_cerrado}/estadisticas",
+                   json={"jugadores": [{"id": blanco, "goles": 3}]}, headers=admin.headers)
+    assert r.status_code == 200
+
+
 def test_volver_a_elegir_deshace_los_equipos_y_mantiene_convocatoria(client, admin, partido_con_equipos):
     r = client.delete(f"/api/partidos/{partido_con_equipos}/equipos", headers=admin.headers)
     p = r.get_json()["partido"]
@@ -155,7 +172,7 @@ def test_planilla_valida_jugadores_y_numeros(client, admin, plantilla, partido_c
         [{"id": no_convocado, "goles": 1, "gpp": 0, "asistencias": 0}],
         [{"id": blanco, "goles": 1, "gpp": 0, "asistencias": 0}] * 2,
         [{"id": blanco, "goles": -1, "gpp": 0, "asistencias": 0}],
-        [{"id": blanco, "goles": 1, "asistencias": 0}],  # falta gpp
+        [{"id": blanco, "gpp": 0}],  # faltan los goles
         [{"id": True, "goles": 1, "gpp": 0, "asistencias": 0}],
     ]
     for planilla in malas:

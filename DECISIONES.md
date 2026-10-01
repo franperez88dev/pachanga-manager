@@ -23,9 +23,22 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 3. Un **gpp** suma un gol al equipo rival, no cuenta como gol propio y tiene **columna propia** en la clasificación y en el perfil.
 4. Si los goles no cuadran con el resultado (o hay más asistencias que goles), la app **avisa pero deja guardar**.
 
+## Asistencias ocultas (01/10/2026)
+- **De momento solo se llevan goles (y gpp).** La app no muestra ni pide asistencias.
+- El backend las conserva como campo opcional (vale 0 si no llega) para poder reactivarlas sin migrar datos.
+
+## Avatares (01/10/2026)
+- Cada jugador elige su avatar al registrarse y puede cambiarlo cuando quiera desde su perfil.
+- **Personalizable**: color de piel, peinado + color, barba + color.
+- **Botón "Aleatorio"**, que se puede pulsar las veces que quiera; a veces sale un dibujo especial (alien, perro, gato, pepino, calabaza).
+- Si no elige nada, le toca uno al azar.
+- **El admin puede subir avatares nuevos** (PNG, JPEG o WebP de hasta 300 KB; SVG no, por seguridad). Al retirarlos desaparecen del catálogo, pero quien ya los tenga los conserva.
+
 ## Equipos
 - Se muestran las fuerzas totales con números ("15,0 vs 14,5"). Se sabe que, rebarajando muchas veces, podrían deducirse medias aproximadas; se acepta a cambio del pique entre amigos.
 - Tolerancia de "Rebarajar": 0,5 puntos sobre el mejor reparto posible (explicado en `backend/pachanga/equipos.py`).
+- **Vista de equipos sobre una pista de fútbol sala** (fondo azul `#002db3`), en formación **portero – 2 defensas – 2 delanteros**. Los defensas van al borde de su área y los delanteros, cerca del círculo central en su propio campo. Cada jugador se ve con su avatar redondo, su dorsal y su mote debajo.
+- Quién juega de portero, defensa o delantero se sortea al hacer los equipos y se guarda, para que todos vean la misma alineación.
 
 ## Pendiente de decidir más adelante
 - Migraciones de base de datos (Flask-Migrate) antes de la Fase 4.

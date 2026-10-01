@@ -81,7 +81,7 @@ def test_equipos_muestran_solo_fuerza_total(client, plantilla, peña_con_valorac
     for color in ("blanco", "negro"):
         assert set(equipos[color]) == {"color", "nombre", "fuerza", "jugadores"}
         for j in equipos[color]["jugadores"]:
-            assert set(j) == {"id", "mote", "nombre_real", "dorsal", "es_admin"}
+            assert set(j) == {"id", "mote", "nombre_real", "dorsal", "es_admin", "avatar", "posicion"}
 
 # ------------------------------------------------------------ reglas de las valoraciones
 def test_valoracion_una_sola_vez_y_sin_poder_verla(client, plantilla):

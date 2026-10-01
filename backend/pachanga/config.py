@@ -36,6 +36,8 @@ def cargar_config():
         # SQLite relativo: Flask-SQLAlchemy lo guarda en backend/instance/
         "SQLALCHEMY_DATABASE_URI": normalizar_url_bd(os.environ.get("DATABASE_URL", "sqlite:///pachanga.db")),
         "SQLALCHEMY_ENGINE_OPTIONS": {"pool_pre_ping": True},
+        # Tamaño máximo de cualquier petición (las imágenes de avatar son de 300 KB como mucho)
+        "MAX_CONTENT_LENGTH": 1024 * 1024,
         "CORS_ORIGENES": origenes,
         # Detrás del proxy del hosting, la IP real del cliente llega en X-Forwarded-For
         "CONFIAR_EN_PROXY": _booleano("CONFIAR_EN_PROXY"),

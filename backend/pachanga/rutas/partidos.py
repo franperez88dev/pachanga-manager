@@ -8,6 +8,7 @@ Ciclo de vida de un partido:
      b) El admin pulsa "Sig." y cada convocado apunta lo suyo desde su móvil;
         el admin lo confirma o lo descarta cuando pueda.
 """
+import random
 from datetime import datetime
 
 from flask import Blueprint, current_app, g, jsonify
@@ -29,6 +30,13 @@ bp = Blueprint("partidos", __name__, url_prefix="/api/partidos")
 MAX_GOLES_JUGADOR = 30
 MAX_GOLES_EQUIPO = 99
 CAMPOS_STATS = ("goles", "gpp", "asistencias")
+# De momento la app no usa asistencias (ver DECISIONES.md): son opcionales y valen 0 si no llegan.
+CAMPOS_OPCIONALES = ("gpp", "asistencias")
+
+
+def leer_stats(datos):
+    datos = {c: 0 for c in CAMPOS_OPCIONALES} | datos
+    return {c: entero(datos, c, 0, MAX_GOLES_JUGADOR) for c in CAMPOS_STATS}
 
 
 def partido_o_404(pid):
@@ -171,6 +179,12 @@ def crear_equipos(pid):
     )
     for mp in partido.jugadores:
         mp.equipo = EQUIPO_BLANCO if mp.user_id in blanco else EQUIPO_NEGRO
+    # Quién va de portero, defensa o delantero se sortea (posiciones 0 a 4 en cada equipo)
+    azar = random.SystemRandom()
+    for color in (EQUIPO_BLANCO, EQUIPO_NEGRO):
+        suyos = [mp for mp in partido.jugadores if mp.equipo == color]
+        for posicion, mp in enumerate(azar.sample(suyos, len(suyos))):
+            mp.posicion = posicion
     partido.equipos_generados = True
     partido.fuerza_blanco = f_blanco
     partido.fuerza_negro = f_negro
@@ -271,7 +285,7 @@ def guardar_planilla(pid):
         uid = fila.get("id")
         if isinstance(uid, bool) or uid not in convocados or uid in datos:
             raise ErrorApi(400, "Cada jugador de la planilla debe ser un convocado distinto")
-        datos[uid] = {c: entero(fila, c, 0, MAX_GOLES_JUGADOR) for c in CAMPOS_STATS}
+        datos[uid] = leer_stats(fila)
 
     StatReport.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
     for uid, valores in datos.items():
@@ -290,11 +304,9 @@ def reportar(pid):
     if not any(mp.user_id == g.usuario.id for mp in partido.jugadores):
         raise ErrorApi(403, "Solo los convocados pueden apuntar goles en este partido")
     exigir_cerrado(partido)
-    datos = cuerpo_json()
-    datos.setdefault("gpp", 0)
-    valores = {c: entero(datos, c, 0, MAX_GOLES_JUGADOR) for c in CAMPOS_STATS}
+    valores = leer_stats(cuerpo_json())
     if not any(valores.values()):
-        raise ErrorApi(400, "Apunta al menos un gol, un gpp o una asistencia")
+        raise ErrorApi(400, "Apunta al menos un gol o un gpp")
     ya = StatReport.query.filter(
         StatReport.match_id == partido.id,
         StatReport.user_id == g.usuario.id,

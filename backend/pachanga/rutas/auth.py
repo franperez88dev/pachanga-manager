@@ -1,6 +1,7 @@
 """Registro, login y la cuenta propia."""
 from flask import Blueprint, current_app, g, jsonify, request
 
+from ..avatares import validar_avatar
 from ..errores import ErrorApi
 from ..extensions import db
 from ..serializadores import usuario_propio
@@ -23,7 +24,7 @@ def registro():
     if espera:
         raise error_demasiados_intentos(espera)
 
-    usuario, pin = crear_usuario(datos.get("mote"), datos.get("nombre_real"))
+    usuario, pin = crear_usuario(datos.get("mote"), datos.get("nombre_real"), avatar=datos.get("avatar"))
     sumar_intento(clave_ip, current_app.config["REGISTRO_MAX_POR_IP_HORA"], 60)
     db.session.commit()
     # Única vez que el jugador recibe su PIN: la app se lo enseña en grande para que lo apunte
@@ -44,6 +45,15 @@ def login():
 @requiere_sesion
 def yo():
     """La app lo consulta al arrancar para saber quién eres, tu rol y si ya te aprobaron."""
+    return jsonify(usuario=usuario_propio(g.usuario))
+
+
+@bp.put("/yo/avatar")
+@requiere_sesion
+def cambiar_avatar():
+    """Cada uno puede cambiar su avatar cuando quiera (también estando pendiente de aprobación)."""
+    g.usuario.avatar = validar_avatar(cuerpo_json().get("avatar"))
+    db.session.commit()
     return jsonify(usuario=usuario_propio(g.usuario))
 
 

@@ -43,6 +43,7 @@ class User(db.Model):
     dorsal = db.Column(db.Integer, nullable=False, unique=True)
     # La clave para entrar es un PIN de 4 cifras. Solo guardamos su hash, nunca el PIN.
     pin_hash = db.Column(db.String(255), nullable=False)
+    avatar = db.Column(db.JSON, nullable=False)  # ver avatares.py
     rol = db.Column(db.String(10), nullable=False, default=ROL_JUGADOR)
     estado = db.Column(db.String(10), nullable=False, default=ESTADO_PENDIENTE)
     fecha_alta = db.Column(db.DateTime, nullable=False, default=ahora)
@@ -87,6 +88,8 @@ class MatchPlayer(db.Model):
     match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), primary_key=True)
     equipo = db.Column(db.String(10))  # blanco / negro / None si aún no hay equipos
+    # Sitio en el campo dentro de su equipo: 0 portero, 1-2 defensas, 3-4 delanteros
+    posicion = db.Column(db.Integer)
 
     partido = db.relationship("Match", back_populates="jugadores")
     usuario = db.relationship("User")
@@ -121,6 +124,19 @@ class StatReport(db.Model):
 
     partido = db.relationship("Match")
     usuario = db.relationship("User")
+
+
+class AvatarSubido(db.Model):
+    """Imagen de avatar que sube un admin (PNG, JPEG o WebP pequeño).
+    Al "borrarla" solo se oculta del catálogo: quien ya la tenga la conserva."""
+    __tablename__ = "avatares_subidos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(30), nullable=False)
+    mime = db.Column(db.String(20), nullable=False)
+    datos = db.Column(db.LargeBinary, nullable=False)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    creado = db.Column(db.DateTime, nullable=False, default=ahora)
 
 
 class IntentoAcceso(db.Model):
