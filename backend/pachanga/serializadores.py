@@ -78,7 +78,8 @@ def partido_detalle(p, usuario):
         datos["equipos"] = {
             "blanco": equipo(EQUIPO_BLANCO, p.fuerza_blanco),
             "negro": equipo(EQUIPO_NEGRO, p.fuerza_negro),
-            "diferencia": round(abs(p.fuerza_blanco - p.fuerza_negro), 1),
+            # Con las fuerzas ya redondeadas, para que cuadre con lo que se ve (15,2 - 15,1 = 0,1)
+            "diferencia": round(abs(round(p.fuerza_blanco, 1) - round(p.fuerza_negro, 1)), 1),
         }
     datos["votacion"] = votacion(p, usuario) if p.equipos_generados else None
     return datos
