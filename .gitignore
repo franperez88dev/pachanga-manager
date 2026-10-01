@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+# La URL del backend que usa la app no es secreta (va dentro del APK de todos modos)
+!app/.env.development
+!app/.env.production
 *.keystore
 *.jks
 keystore.properties
