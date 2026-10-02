@@ -15,7 +15,9 @@
        adb reverse tcp:5000 tcp:5000 -> el 127.0.0.1:5000 del móvil pasa a ser el backend del PC
 #>
 param([switch]$Instalar, [switch]$SoloConectar)
-$ErrorActionPreference = "Stop"
+# "Continue" y no "Stop": Gradle y npm escriben avisos por la salida de errores y PowerShell 5.1
+# los tomaría por fallos. Si un paso falla de verdad, lo detectamos con $LASTEXITCODE.
+$ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot  # la carpeta "app", esté donde esté la terminal
 
 function Paso($texto) { Write-Host "`n==> $texto" -ForegroundColor Green }

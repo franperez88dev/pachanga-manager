@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Verde césped de la app (el mismo que --verde en estilos.css) -->
+    <!-- Verde césped de la app (el mismo que la variable "verde" de estilos.css) -->
     <color name="verde">#0F7A4D</color>
     <color name="verde_oscuro">#0B5C3A</color>
 </resources>
