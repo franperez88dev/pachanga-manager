@@ -205,8 +205,8 @@ La sesión se guarda en el navegador. Para tener dos sesiones a la vez:
 - Ventana de **incógnito** (Ctrl+Shift+N): entra como un jugador de prueba, por ejemplo
   **Feragi + 1111**.
 
-
-
+> **No apuntes tus PINs en este README** (se sube a GitHub). Si quieres tenerlos a mano,
+> usa el archivo `notas-privadas.md` de la raíz del proyecto: git lo ignora.
 
 ### 5.3 Guion de prueba completo
 
