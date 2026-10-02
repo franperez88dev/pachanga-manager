@@ -14,8 +14,11 @@ import "./estilos.css";
 
 import App from "./App";
 import { AvisosProvider } from "./avisos";
+import { activarBotonAtras } from "./botonAtras";
 import Conectando from "./pantallas/Conectando";
 import { SesionProvider } from "./sesion";
+
+activarBotonAtras();
 
 // HashRouter: las direcciones van tras un # (index.html#/partidos). Funciona dentro de
 // Capacitor sin configurar nada en un servidor, porque el archivo siempre es index.html.
