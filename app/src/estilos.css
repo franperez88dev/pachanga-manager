@@ -293,6 +293,10 @@ h1, h2, h3, h4 { margin: 0; }
 /* ---------- Tarjetas resumidas de partidos (Inicio y lista de Partidos) ---------- */
 .tarjeta-partido { display: flex; flex-direction: column; gap: 8px; padding: 13px 15px; text-decoration: none; }
 .tarjeta-partido:active, .tarjeta-jugado:active, .fila-top:active { transform: scale(0.99); }
+.tarjeta-partido.destacada {
+  background: color-mix(in srgb, var(--verde) 10%, var(--superficie));
+  border-color: color-mix(in srgb, var(--verde) 45%, var(--borde));
+}
 .tarjeta-partido-fila { display: flex; align-items: center; gap: 10px; }
 .tarjeta-partido-texto { flex: 1; min-width: 0; }
 .tarjeta-partido-pie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

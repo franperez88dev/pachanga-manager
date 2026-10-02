@@ -44,7 +44,7 @@ export default function Inicio() {
     const abiertos = datos.partidos.filter((p) => p.estado === "abierto").reverse();
     const cerrados = datos.partidos.filter((p) => p.estado === "cerrado").slice(0, ULTIMOS);
     proximos = abiertos.length ? (
-      <div className="lista">{abiertos.map((p) => <TarjetaProximo key={p.id} partido={p} />)}</div>
+      <div className="lista">{abiertos.map((p) => <TarjetaProximo key={p.id} partido={p} destacada />)}</div>
     ) : (
       <Vacio>
         <p>No hay ningún partido programado.</p>

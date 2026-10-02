@@ -4,6 +4,7 @@
  * quién ha iniciado sesión; cualquier pantalla puede leerlo con useSesion().
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { api, avisarCuandoCaduqueLaSesion, token } from "./api";
 
 const SesionContext = createContext(null);
@@ -14,10 +15,15 @@ export function SesionProvider({ children }) {
   const [comprobando, setComprobando] = useState(() => Boolean(token.leer()));
   const [errorInicial, setErrorInicial] = useState(null);
 
+  // Al entrar o salir siempre se empieza desde Inicio (no en la última pantalla que se vio).
+  // useNavigate funciona aquí porque SesionProvider está dentro de <HashRouter> (main.jsx).
+  const navegar = useNavigate();
+
   const salir = useCallback(() => {
     token.borrar();
+    navegar("/", { replace: true });
     setUsuario(null);
-  }, []);
+  }, [navegar]);
 
   const recargarUsuario = useCallback(async () => {
     const datos = await api.get("/api/yo");
@@ -46,8 +52,9 @@ export function SesionProvider({ children }) {
 
   const entrar = useCallback((nuevoToken, nuevoUsuario) => {
     token.guardar(nuevoToken);
+    navegar("/", { replace: true });
     setUsuario(nuevoUsuario);
-  }, []);
+  }, [navegar]);
 
   const reintentar = useCallback(() => {
     setErrorInicial(null);

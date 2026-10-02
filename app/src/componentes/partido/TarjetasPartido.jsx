@@ -3,14 +3,15 @@ import { Link } from "react-router";
 import { EQUIPOS } from "../../config";
 import { fechaPartido } from "../../formato";
 
-export function TarjetaProximo({ partido }) {
+// `destacada`: fondo verde suave (se usa en Inicio para distinguirlos de los ya jugados)
+export function TarjetaProximo({ partido, destacada = false }) {
   let estado;
   if (!partido.equipos_generados) estado = partido.num_convocados === 10 ? "Equipos por hacer" : "Convocatoria pendiente";
   else if (partido.convocado) estado = <>Juegas con <b>{EQUIPOS[partido.mi_equipo].nombre}</b></>;
   else estado = "Equipos hechos";
 
   return (
-    <Link to={`/partidos/${partido.id}`} className="tarjeta tarjeta-partido">
+    <Link to={`/partidos/${partido.id}`} className={`tarjeta tarjeta-partido ${destacada ? "destacada" : ""}`}>
       <div className="tarjeta-partido-fila">
         <div className="tarjeta-partido-texto">
           <div className="fecha-partido">{fechaPartido(partido.fecha)}</div>
