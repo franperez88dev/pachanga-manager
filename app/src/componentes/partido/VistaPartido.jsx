@@ -27,6 +27,19 @@ function Cabecera({ partido }) {
   );
 }
 
+// "Juegas con…" en los colores del equipo y con su escudo grande
+function TuEquipo({ color, pasado = false }) {
+  return (
+    <div className={`tu-equipo ${color}`}>
+      <img src={EQUIPOS[color].escudo} alt="" />
+      <div>
+        <div className="tu-equipo-texto">{pasado ? "Jugaste con" : "Juegas con"}</div>
+        <div className="tu-equipo-nombre">{EQUIPOS[color].nombre}</div>
+      </div>
+    </div>
+  );
+}
+
 export function Resultado({ partido }) {
   const { blanco, negro } = partido.resultado;
   return (
@@ -116,11 +129,7 @@ export default function VistaPartido({ partido, alCambiar }) {
         ) : (
           <>
             {!partido.convocado && <div className="banner">No estás convocado para este partido.</div>}
-            {partido.convocado && (
-              <div className="banner banner-verde">
-                Juegas con <b>{EQUIPOS[partido.mi_equipo].nombre}</b>
-              </div>
-            )}
+            {partido.convocado && <TuEquipo color={partido.mi_equipo} />}
             <Pista equipos={equipos} />
             <p className="nota centrado">Diferencia de fuerza: <b>{decimal(equipos.diferencia)} pts</b></p>
             {partido.convocado && <Votacion partido={partido} alCambiar={alCambiar} />}
@@ -149,6 +158,7 @@ export default function VistaPartido({ partido, alCambiar }) {
     <div className="pila">
       <Cabecera partido={partido} />
       <Resultado partido={partido} />
+      {partido.convocado && partido.mi_equipo && <TuEquipo color={partido.mi_equipo} pasado />}
       {esAdmin && panel === "planilla" && (
         <Planilla partido={partido} alTerminar={(guardada) => { setPanel(null); setPlanillaSaltada(!guardada); }} />
       )}
