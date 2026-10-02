@@ -1,0 +1,5 @@
+{
+  // Solo para este proyecto: las terminales nuevas se abren en PowerShell, que es la que usa
+  // el README (en el Símbolo del sistema, los scripts .ps1 se abren en el Bloc de notas).
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "android:sincronizar": "cap sync android",
     "version:subir": "npm version patch --no-git-tag-version",
-    "version:subir-menor": "npm version minor --no-git-tag-version"
+    "version:subir-menor": "npm version minor --no-git-tag-version",
+    "movil:comprobar": "powershell -NoProfile -ExecutionPolicy Bypass -File compilar-apk.ps1 -ComprobarMovil",
+    "movil:instalar": "powershell -NoProfile -ExecutionPolicy Bypass -File compilar-apk.ps1 -Instalar",
+    "movil:conectar": "powershell -NoProfile -ExecutionPolicy Bypass -File compilar-apk.ps1 -SoloConectar",
+    "movil:compilar": "powershell -NoProfile -ExecutionPolicy Bypass -File compilar-apk.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",

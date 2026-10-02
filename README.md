@@ -32,9 +32,9 @@ valoraciones secretas.
 ### Cuatro ideas que conviene tener claras
 
 - **Terminal y carpeta.** Todos los comandos se escriben en una terminal de VS Code
-  (menú **Terminal → New Terminal**; es PowerShell). La terminal se abre en la carpeta
-  `pachanga-manager`; con `cd backend` o `cd app` entras en la subcarpeta que toque.
-  Si en algún momento no sabes dónde estás, escribe `pwd`.
+  (menú **Terminal → New Terminal**), que se abre en la carpeta `pachanga-manager`; con
+  `cd backend` o `cd app` entras en la subcarpeta que toque. Tiene que ser una terminal
+  **PowerShell**: mira el apartado siguiente.
 - **Entorno virtual de Python (`.venv`).** Es una carpeta con las librerías del backend,
   separadas de las de tu ordenador. Hay que **activarlo** en cada terminal nueva
   (`.\.venv\Scripts\Activate.ps1`); sabrás que está activo porque la línea empieza por `(.venv)`.
@@ -44,6 +44,26 @@ valoraciones secretas.
     (está en `.gitignore`). Es la que lee el backend.
 - **Dos programas a la vez.** Para usar la app en local tienen que estar encendidos el
   **backend** (puerto 5000) y la **app** (puerto 5173), cada uno en su propia terminal.
+
+### La terminal tiene que ser PowerShell (no el "Símbolo del sistema")
+
+VS Code puede abrir dos tipos de terminal en Windows, y este README está escrito para
+**PowerShell**. Se distinguen por cómo empieza la línea:
+
+| La línea empieza por… | Es… | ¿Vale? |
+|---|---|---|
+| `PS F:\GitHub\pachanga-manager>` | **PowerShell** | ✅ Sí |
+| `F:\GitHub\pachanga-manager>` (sin `PS`) | **Símbolo del sistema** (cmd) | ❌ No: ahí los comandos `.ps1` abren el Bloc de notas en vez de ejecutarse |
+
+Este proyecto ya trae un ajuste (`.vscode/settings.json`) para que las **terminales nuevas** se
+abran en PowerShell. Si tienes alguna terminal antigua abierta en cmd, ciérrala con el icono
+de la **papelera** del panel de terminales y abre otra con **Terminal → New Terminal**.
+
+Para abrir una PowerShell a mano: en el panel de terminales, pulsa la **flechita ˅** que hay
+junto al **+** y elige **PowerShell**.
+
+> Los comandos `npm run ...` funcionan en las dos, pero el resto del README (activar el
+> entorno de Python, etc.) necesita PowerShell.
 
 ### Cómo leer los comandos de este README
 
@@ -65,9 +85,8 @@ pone otra cosa, muévete primero (ver `cd` abajo).
 |---|---|
 | `cd app` | **c**ambia de **d**irectorio: entra en la carpeta `app` (desde `pachanga-manager`). |
 | `cd ..` | Sube a la carpeta de arriba (de `app` vuelves a `pachanga-manager`). |
-| `.\algo.ps1` | Ejecuta el script `algo.ps1` que está **en esta carpeta** (`.\` = "aquí"). |
-| `-Instalar` | Una **opción** del script: le dice qué hacer. Va después del nombre, separada por un espacio. |
-| `npm run ...` | Ejecuta una de las tareas definidas en `app/package.json`. |
+| `.\algo.ps1` | Ejecuta el script `algo.ps1` que está **en esta carpeta** (`.\` = "aquí"). Solo en PowerShell. |
+| `npm run movil:instalar` | Ejecuta la tarea `movil:instalar`, que está definida en `app/package.json`. Hay que estar en la carpeta `app`. |
 | **Ctrl+C** | Detiene el programa que está funcionando en esa terminal (por ejemplo, el backend). |
 
 ---
@@ -257,13 +276,13 @@ La app web de `app/` se mete dentro de una app Android con **Capacitor**. El res
 **APK**: el archivo que se instala en el móvil. En esta etapa, el móvil habla con el backend
 que corre en **tu PC** a través del **cable USB**.
 
-Todo se hace con un único script, `app/compilar-apk.ps1`, que tiene tres usos:
+Todo se hace con tres comandos, que se escriben en la carpeta `app` (por dentro usan el script `app/compilar-apk.ps1`):
 
 | Lo que escribes (en la carpeta `app`) | Para qué sirve | Cuándo usarlo |
 |---|---|---|
-| `.\compilar-apk.ps1 -ComprobarMovil` | Dice si el móvil está bien conectado y si el backend está encendido. **No instala nada.** | Antes de instalar, o cuando algo no va. |
-| `.\compilar-apk.ps1 -Instalar` | Fabrica el APK con tu código actual y lo instala en el móvil. | La primera vez y cada vez que cambies algo de la app. |
-| `.\compilar-apk.ps1 -SoloConectar` | Vuelve a "enchufar" el móvil al backend del PC, sin fabricar nada. | Tras desenchufar el cable o reiniciar el PC o el móvil. |
+| `npm run movil:comprobar` | Dice si el móvil está bien conectado y si el backend está encendido. **No instala nada.** | Antes de instalar, o cuando algo no va. |
+| `npm run movil:instalar` | Fabrica el APK con tu código actual y lo instala en el móvil. | La primera vez y cada vez que cambies algo de la app. |
+| `npm run movil:conectar` | Vuelve a "enchufar" el móvil al backend del PC, sin fabricar nada. | Tras desenchufar el cable o reiniciar el PC o el móvil. |
 
 ### 6.1 Preparar el PC (solo la primera vez)
 
@@ -323,7 +342,7 @@ La línea debe acabar en `...\pachanga-manager\app>`.
 **Paso 3. Comprueba que todo está listo.** Con el móvil conectado por el cable:
 
 ```powershell
-.\compilar-apk.ps1 -ComprobarMovil
+npm run movil:comprobar
 ```
 
 **Va bien** si salen dos líneas verdes:
@@ -339,7 +358,7 @@ autorizar el PC en el aviso del móvil, o encender el backend). Arréglalo y rep
 **Paso 4. Fabrica e instala la app.**
 
 ```powershell
-.\compilar-apk.ps1 -Instalar
+npm run movil:instalar
 ```
 
 Irán apareciendo muchas líneas. Los pasos importantes salen en verde, empezando por `==>`:
@@ -372,15 +391,15 @@ puedes desenchufar el móvil. La app sigue instalada, pero sin el backend del PC
 
 | Situación | Qué hacer |
 |---|---|
-| Quiero volver a probar otro día | Paso 1 (encender backend), conectar el móvil, y en la carpeta `app`: `.\compilar-apk.ps1 -SoloConectar`. No hace falta reinstalar. |
-| He desenchufado el cable o he reiniciado el PC o el móvil, y la app se queda en "Conectando…" | `.\compilar-apk.ps1 -SoloConectar` (con el backend encendido). |
-| He cambiado código de la app (`app/src`) | `.\compilar-apk.ps1 -Instalar` otra vez. Se instala encima y conservas la sesión. |
+| Quiero volver a probar otro día | Paso 1 (encender backend), conectar el móvil, y en la carpeta `app`: `npm run movil:conectar`. No hace falta reinstalar. |
+| He desenchufado el cable o he reiniciado el PC o el móvil, y la app se queda en "Conectando…" | `npm run movil:conectar` (con el backend encendido). |
+| He cambiado código de la app (`app/src`) | `npm run movil:instalar` otra vez. Se instala encima y conservas la sesión. |
 | He cambiado código del backend | Nada: con `flask run --debug` el backend se reinicia solo. |
 
 > **¿Por qué hay que "volver a conectar"?** La app del móvil busca el backend en su propia
 > dirección `127.0.0.1:5000`. El script le pide a Android (con `adb reverse`) que todo lo que
 > vaya ahí lo mande por el cable a tu PC. Ese "desvío" se borra al desenchufar el cable o al
-> reiniciar, y `-SoloConectar` lo vuelve a crear.
+> reiniciar, y `npm run movil:conectar` lo vuelve a crear.
 
 ### 6.5 La firma del APK (¡importante!)
 
@@ -436,9 +455,9 @@ sentido, porque el backend solo existe en tu PC.
 | `app` | `npm install` | Instala las dependencias (la primera vez o si cambia `package.json`) |
 | `app` | `npm run dev` | Enciende la app en el puerto 5173 |
 | `app` | `npm run build` | Genera la web final en `app/dist` |
-| `app` | `.\compilar-apk.ps1 -ComprobarMovil` | Dice si el móvil está bien conectado y si el backend está encendido |
-| `app` | `.\compilar-apk.ps1 -Instalar` | Compila el APK de pruebas y lo instala en el móvil conectado por USB |
-| `app` | `.\compilar-apk.ps1 -SoloConectar` | Vuelve a conectar el móvil con el backend del PC (tras desenchufar el cable) |
+| `app` | `npm run movil:comprobar` | Dice si el móvil está bien conectado y si el backend está encendido |
+| `app` | `npm run movil:instalar` | Compila el APK de pruebas y lo instala en el móvil conectado por USB |
+| `app` | `npm run movil:conectar` | Vuelve a conectar el móvil con el backend del PC (tras desenchufar el cable) |
 | `app` | `npm run version:subir` | Sube la versión de la app (0.1.0 → 0.1.1) |
 
 ---
@@ -455,10 +474,10 @@ sentido, porque el backend solo existe en tu PC.
 | He cambiado código del backend y no se nota | Si no usas `--debug`, apágalo (Ctrl+C) y vuelve a encenderlo. |
 | *"no such column"* u otros errores de base de datos | Ver [Empezar de cero](#54-empezar-de-cero). |
 | He olvidado mi PIN de admin | Si hay otro admin, que te dé uno nuevo desde Admin → Peña. Si no, empieza de cero. |
-| *"No se puede cargar el archivo ... compilar-apk.ps1 porque la ejecución de scripts está deshabilitada"* | Igual que con `Activate.ps1`: ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y responde **S**. |
-| *"El término '.\compilar-apk.ps1' no se reconoce"* | No estás en la carpeta `app`: escribe `cd app` (o `cd ..\app` si estás en `backend`). |
-| `compilar-apk.ps1`: *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
-| `compilar-apk.ps1`: *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
-| El script dice `NO` sobre el móvil | Lee el mensaje amarillo: casi siempre es autorizar el PC en el aviso del móvil, activar la depuración USB o usar un cable de datos ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). Repite `.\compilar-apk.ps1 -ComprobarMovil` hasta que salga `OK`. |
-| La app del móvil se queda en *"Conectando…"* | ¿Está `flask run` encendido? ¿Has desenchufado el cable? Ejecuta `.\compilar-apk.ps1 -SoloConectar`. |
+| Al escribir un comando `.ps1` se abre el **Bloc de notas** y no pasa nada | Estás en el **Símbolo del sistema**, no en PowerShell: ver [La terminal tiene que ser PowerShell](#la-terminal-tiene-que-ser-powershell-no-el-símbolo-del-sistema). |
+| `npm run movil:...` dice *"Missing script"* | No estás en la carpeta `app`: escribe `cd app` (o `cd ..\app` si estás en `backend`). |
+| *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
+| *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
+| El script dice `NO` sobre el móvil | Lee el mensaje amarillo: casi siempre es autorizar el PC en el aviso del móvil, activar la depuración USB o usar un cable de datos ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). Repite `npm run movil:comprobar` hasta que salga `OK`. |
+| La app del móvil se queda en *"Conectando…"* | ¿Está `flask run` encendido? ¿Has desenchufado el cable? Ejecuta `npm run movil:conectar`. |
 | *"INSTALL_FAILED_UPDATE_INCOMPATIBLE"* al instalar | Hay instalada una versión firmada con otra clave: desinstala la app del móvil una vez y vuelve a instalar. |

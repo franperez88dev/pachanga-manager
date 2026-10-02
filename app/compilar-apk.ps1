@@ -1,11 +1,12 @@
 ﻿<#
   Compila el APK de PRUEBAS (debug) y, si se pide, lo instala en el móvil conectado por USB.
 
-  Uso (en una terminal de VS Code, dentro de la carpeta "app"):
-    .\compilar-apk.ps1                 # solo compila
-    .\compilar-apk.ps1 -ComprobarMovil # no compila: dice si el móvil y el backend están listos
-    .\compilar-apk.ps1 -Instalar       # compila, instala en el móvil y conecta con el backend del PC
-    .\compilar-apk.ps1 -SoloConectar   # no compila: solo vuelve a conectar el móvil con el backend
+  Uso (en una terminal de VS Code, dentro de la carpeta "app"). Lo normal es usar los
+  "npm run" de la izquierda, que funcionan en cualquier terminal (PowerShell o cmd):
+    npm run movil:compilar   = .\compilar-apk.ps1                 # solo compila
+    npm run movil:comprobar  = .\compilar-apk.ps1 -ComprobarMovil # dice si el móvil y el backend están listos
+    npm run movil:instalar   = .\compilar-apk.ps1 -Instalar       # compila, instala y conecta con el backend
+    npm run movil:conectar   = .\compilar-apk.ps1 -SoloConectar   # solo vuelve a conectar el móvil
 
   Pasos que hace (los mismos que harías a mano):
     1. Busca un JDK 17-24 (Gradle 8.14 no funciona con Java 25) y el SDK de Android.
