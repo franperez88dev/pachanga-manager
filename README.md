@@ -45,6 +45,31 @@ valoraciones secretas.
 - **Dos programas a la vez.** Para usar la app en local tienen que estar encendidos el
   **backend** (puerto 5000) y la **app** (puerto 5173), cada uno en su propia terminal.
 
+### Cómo leer los comandos de este README
+
+Los comandos van en recuadros grises. Se **copian tal cual**, se pegan en la terminal
+(clic derecho → Pegar, o Ctrl+V) y se pulsa **Enter**. Lo que va detrás de `#` es un
+comentario para ti: si lo pegas no pasa nada, la terminal lo ignora.
+
+**¿Dónde estoy?** La terminal siempre muestra delante de lo que escribes la carpeta en la que
+estás. Por ejemplo:
+
+```text
+PS F:\GitHub\pachanga-manager\app>
+```
+
+significa que estás en la carpeta `app`. Si un paso dice "en la carpeta `app`" y tu terminal
+pone otra cosa, muévete primero (ver `cd` abajo).
+
+| Trozo | Qué significa |
+|---|---|
+| `cd app` | **c**ambia de **d**irectorio: entra en la carpeta `app` (desde `pachanga-manager`). |
+| `cd ..` | Sube a la carpeta de arriba (de `app` vuelves a `pachanga-manager`). |
+| `.\algo.ps1` | Ejecuta el script `algo.ps1` que está **en esta carpeta** (`.\` = "aquí"). |
+| `-Instalar` | Una **opción** del script: le dice qué hacer. Va después del nombre, separada por un espacio. |
+| `npm run ...` | Ejecuta una de las tareas definidas en `app/package.json`. |
+| **Ctrl+C** | Detiene el programa que está funcionando en esa terminal (por ejemplo, el backend). |
+
 ---
 
 ## 2. Instalación (solo la primera vez)
@@ -229,97 +254,135 @@ Si quieres borrar todos los datos de prueba:
 ## 6. La app en tu móvil (APK de pruebas)
 
 La app web de `app/` se mete dentro de una app Android con **Capacitor**. El resultado es un
-**APK**: el archivo que se instala en el móvil. En esta etapa el móvil habla con el backend de
-**tu PC** a través del **cable USB**.
+**APK**: el archivo que se instala en el móvil. En esta etapa, el móvil habla con el backend
+que corre en **tu PC** a través del **cable USB**.
+
+Todo se hace con un único script, `app/compilar-apk.ps1`, que tiene tres usos:
+
+| Lo que escribes (en la carpeta `app`) | Para qué sirve | Cuándo usarlo |
+|---|---|---|
+| `.\compilar-apk.ps1 -ComprobarMovil` | Dice si el móvil está bien conectado y si el backend está encendido. **No instala nada.** | Antes de instalar, o cuando algo no va. |
+| `.\compilar-apk.ps1 -Instalar` | Fabrica el APK con tu código actual y lo instala en el móvil. | La primera vez y cada vez que cambies algo de la app. |
+| `.\compilar-apk.ps1 -SoloConectar` | Vuelve a "enchufar" el móvil al backend del PC, sin fabricar nada. | Tras desenchufar el cable o reiniciar el PC o el móvil. |
 
 ### 6.1 Preparar el PC (solo la primera vez)
 
-Además de Android Studio, para compilar hacen falta dos cosas que se descargan desde él.
+Ya está hecho en este ordenador. Lo dejo apuntado por si cambias de PC:
 
-**a) La plataforma Android 36**
-
-1. Abre Android Studio (`F:\Android Studio\bin\studio64.exe`). Si es la primera vez, sigue el
-   asistente con las opciones por defecto (*Standard*) y acepta las licencias.
-2. En la pantalla de bienvenida: **More Actions → SDK Manager** (con un proyecto abierto:
-   **File → Settings → Languages & Frameworks → Android SDK**).
-3. Comprueba que arriba, en *Android SDK Location*, pone
-   `C:\Users\SuFran\AppData\Local\Android\Sdk`.
-4. Pestaña **SDK Platforms**: marca **Android 16 (API 36)**.
-5. Pestaña **SDK Tools**: marca **Show Package Details** (abajo a la derecha) y, dentro de
-   *Android SDK Build-Tools*, marca la versión **36** más alta. Marca también (o actualiza)
-   **Android SDK Platform-Tools**.
-6. **Apply → OK** y espera a que termine la descarga.
-
-**b) Un JDK 21** (Android Studio trae Java 25, que el Gradle de Capacitor 8 no admite)
-
-1. En Android Studio: **File → Open** y elige la carpeta `F:\GitHub\pachanga-manager\app\android`.
-2. Al abrirlo intentará "sincronizar" y probablemente falle diciendo que la versión de Java
-   no es compatible. Es normal.
-3. Ve a **File → Settings → Build, Execution, Deployment → Build Tools → Gradle**.
-4. En **Gradle JDK**, despliega la lista y elige **Download JDK…** → *Version* **21**,
-   *Vendor* **Eclipse Temurin** → **Download**. Se guarda en `C:\Users\SuFran\.jdks\`.
-5. **OK**, y luego el botón del elefante con flecha (**Sync Project with Gradle Files**).
-   Esta vez debe terminar bien.
-
-> Después puedes cerrar Android Studio: para compilar usaremos un script desde VS Code.
-> Android Studio solo hacía falta para descargar estas dos cosas.
+1. **Android Studio** con la **plataforma Android 16 (API 36)** y las **Build-Tools 36**
+   (Android Studio → *More Actions* → **SDK Manager**: pestaña *SDK Platforms* para la
+   plataforma; pestaña *SDK Tools*, con *Show Package Details* marcado, para las Build-Tools
+   y las *Platform-Tools*).
+2. **Un JDK 21** (Gradle no funciona con el Java 25 que trae Android Studio). Aquí está en
+   `C:\Users\SuFran\.jdks\temurin-21...`. El script lo encuentra solo.
+3. El **keystore** de la firma (apartado 6.5).
 
 ### 6.2 Preparar el móvil (solo la primera vez)
 
-1. **Activar las opciones de desarrollador:** *Ajustes → Información del teléfono* y toca
-   **7 veces** sobre **Número de compilación** (en algunos móviles está dentro de
-   *Información de software*). Te pedirá tu PIN de desbloqueo y dirá "Ya eres desarrollador".
-2. **Activar la depuración USB:** *Ajustes → Sistema → Opciones de desarrollador →*
-   **Depuración USB**. En los Xiaomi activa también **Instalar vía USB**.
-3. **Conecta el móvil al PC con un cable USB de datos** (algunos cables solo sirven para cargar).
-4. En el móvil saldrá **"¿Permitir depuración USB?"**: marca *Permitir siempre desde este
-   ordenador* y acepta.
+Pasos para tu **Samsung A52s** (en otras marcas los menús se llaman parecido):
 
-Para comprobarlo, en una terminal:
+1. **Activa el modo desarrollador:** *Ajustes → Acerca del teléfono → Información de
+   software* y toca **7 veces seguidas** sobre **Número de compilación**. Te pedirá el PIN de
+   desbloqueo y saldrá "Modo desarrollador activado".
+2. **Activa la depuración USB:** vuelve a *Ajustes*; al final de la lista hay un menú nuevo,
+   **Opciones de desarrollador**. Entra y activa **Depuración USB**.
+3. **Conecta el móvil al PC con el cable USB.** Tiene que ser un cable de **datos**: algunos
+   cables baratos solo cargan.
+4. **Autoriza el PC:** con el móvil desbloqueado saldrá el aviso **"¿Permitir depuración
+   USB?"**. Marca *Permitir siempre desde este ordenador* y pulsa **Permitir**. Si no sale,
+   desenchufa y vuelve a enchufar el cable.
 
-```powershell
-& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices
-```
+### 6.3 Probar la app en el móvil, paso a paso
 
-Debe salir una línea con un código y la palabra `device`. Si pone `unauthorized`, mira el
-aviso del paso 4 en el móvil.
+Necesitas **dos terminales** en VS Code: una para el backend y otra para la app. Para abrir
+una segunda terminal, pulsa el **+** que hay arriba a la derecha del panel de terminales.
+Para pasar de una a otra, haz clic en su nombre en la lista de la derecha.
 
-### 6.3 Compilar, instalar y probar
-
-1. **Terminal 1:** enciende el backend como siempre (apartado 3): `flask run --debug`.
-2. **Terminal 2** (carpeta `app`), con el móvil conectado por USB:
-
-   ```powershell
-   .\compilar-apk.ps1 -Instalar
-   ```
-
-   El script va explicando cada paso mientras lo ejecuta:
-
-   | Paso | Comando | Qué hace |
-   |---|---|---|
-   | 1 | — | Busca el JDK 21 y el SDK de Android |
-   | 2 | `npm run build:movil` | Compila la web con la URL del backend para el móvil (`app/.env.movil`) |
-   | 3 | `npx cap sync android` | Copia esa web dentro del proyecto Android |
-   | 4 | `gradlew.bat assembleDebug` (en `app/android`) | Genera el APK firmado. **La primera vez tarda varios minutos** (descarga Gradle y librerías) |
-   | 5 | `adb install -r ...` | Instala el APK en el móvil, encima de la versión anterior y sin borrar datos |
-   | 6 | `adb reverse tcp:5000 tcp:5000` | Hace que el `127.0.0.1:5000` **del móvil** sea el backend **de tu PC**, por el cable |
-
-   El APK queda en `app/android/app/build/outputs/apk/debug/app-debug.apk`.
-
-3. Abre **Pachanga Manager** en el móvil y entra con tu mote y tu PIN.
-
-**Cada vez que desconectes y vuelvas a conectar el cable** (o reinicies el PC o el móvil), el
-paso 6 se pierde y la app se queda en "Conectando con el servidor…". Para recuperarlo sin
-volver a compilar:
+**Paso 1. Enciende el backend (terminal 1).** Si ya lo tienes encendido, sáltate este paso.
 
 ```powershell
-.\compilar-apk.ps1 -SoloConectar
+cd backend
+.\.venv\Scripts\Activate.ps1
+flask run --debug
 ```
 
-**Si cambias código de la app**, vuelve a ejecutar `.\compilar-apk.ps1 -Instalar`: se instala
-encima y conservas la sesión. Los cambios del backend no necesitan reinstalar nada.
+- `cd backend`: entra en la carpeta del backend. Si la terminal ya pone `...\backend>`, no hace falta.
+- `.\.venv\Scripts\Activate.ps1`: activa el entorno de Python; la línea empezará por `(.venv)`.
+- `flask run --debug`: enciende el backend. **Va bien** si al final pone
+  `Running on http://127.0.0.1:5000`. Esta terminal se queda ocupada: **no la cierres**.
 
-### 6.4 La firma del APK (¡importante!)
+**Paso 2. Ve a la carpeta `app` (terminal 2).** Abre una terminal nueva con el **+**. Se abre en
+`pachanga-manager`, así que escribe:
+
+```powershell
+cd app
+```
+
+La línea debe acabar en `...\pachanga-manager\app>`.
+
+**Paso 3. Comprueba que todo está listo.** Con el móvil conectado por el cable:
+
+```powershell
+.\compilar-apk.ps1 -ComprobarMovil
+```
+
+**Va bien** si salen dos líneas verdes:
+
+```text
+OK  Móvil conectado y con la depuración USB autorizada.
+OK  El backend está encendido.
+```
+
+Si alguna sale en amarillo con `NO`, el propio mensaje dice qué hacer (normalmente:
+autorizar el PC en el aviso del móvil, o encender el backend). Arréglalo y repite este paso.
+
+**Paso 4. Fabrica e instala la app.**
+
+```powershell
+.\compilar-apk.ps1 -Instalar
+```
+
+Irán apareciendo muchas líneas. Los pasos importantes salen en verde, empezando por `==>`:
+
+| Lo que ves | Qué está pasando |
+|---|---|
+| `==> Buscando el JDK y el SDK` | Comprueba que tienes las herramientas. |
+| `==> Compilando la web para el móvil` | Prepara la app con la dirección del backend para el móvil. |
+| `==> Copiando la web al proyecto Android` | Mete esa app dentro del proyecto Android. |
+| `==> Generando el APK de pruebas` | Fabrica el APK y lo firma. **La primera vez tarda varios minutos**; después, menos de uno. Salen muchas líneas `> Task ...`: es normal. |
+| `BUILD SUCCESSFUL` | El APK está fabricado. |
+| `==> Instalando en el móvil` | Lo instala en el móvil por el cable, encima de la versión anterior si la hay (no borra tu sesión). |
+| `Success` y `Instalada. Abre 'Pachanga Manager' en el móvil.` | **Terminado.** |
+
+Si en lugar de eso sale una línea roja que empieza por `ERROR:`, lee lo que dice y mira el
+apartado [8. Problemas frecuentes](#8-problemas-frecuentes).
+
+**Paso 5. Abre la app en el móvil.** Busca el icono verde con un balón, **Pachanga Manager**.
+Verás la pantalla verde de arranque, luego "Conectando con el servidor…" un instante y,
+después, la pantalla para entrar. Entra con tu **mote y tu PIN** y sigue el
+[guion de prueba del apartado 5.3](#53-guion-de-prueba-completo), esta vez en el móvil. Prueba
+también el **botón "atrás"** de Android (vuelve a la pantalla anterior y, desde Inicio, sale
+de la app) y a **girar el móvil** en la pista de los equipos.
+
+**Paso 6. Cuando termines.** En la terminal 1 pulsa **Ctrl+C** para apagar el backend. Ya
+puedes desenchufar el móvil. La app sigue instalada, pero sin el backend del PC se quedará en
+"Conectando con el servidor…".
+
+### 6.4 Las siguientes veces
+
+| Situación | Qué hacer |
+|---|---|
+| Quiero volver a probar otro día | Paso 1 (encender backend), conectar el móvil, y en la carpeta `app`: `.\compilar-apk.ps1 -SoloConectar`. No hace falta reinstalar. |
+| He desenchufado el cable o he reiniciado el PC o el móvil, y la app se queda en "Conectando…" | `.\compilar-apk.ps1 -SoloConectar` (con el backend encendido). |
+| He cambiado código de la app (`app/src`) | `.\compilar-apk.ps1 -Instalar` otra vez. Se instala encima y conservas la sesión. |
+| He cambiado código del backend | Nada: con `flask run --debug` el backend se reinicia solo. |
+
+> **¿Por qué hay que "volver a conectar"?** La app del móvil busca el backend en su propia
+> dirección `127.0.0.1:5000`. El script le pide a Android (con `adb reverse`) que todo lo que
+> vaya ahí lo mande por el cable a tu PC. Ese "desvío" se borra al desenchufar el cable o al
+> reiniciar, y `-SoloConectar` lo vuelve a crear.
+
+### 6.5 La firma del APK (¡importante!)
 
 Android solo deja instalar una versión nueva **encima** de la que ya tienes si las dos están
 **firmadas con la misma clave**. Esa clave es como el sello de la peña: demuestra que la
@@ -327,29 +390,31 @@ actualización viene del mismo sitio que la app original. Si algún día la pier
 móvil aceptará tus actualizaciones. Cada colega tendría que **desinstalar la app** (perdiendo
 su sesión) e instalar la nueva, y en Google Play **no podrías volver a actualizarla nunca**.
 
-- **Dónde está:** `C:\Users\SuFran\.pachanga\pachanga.jks` (el *keystore*, fuera del repositorio).
-- **Su contraseña:** en `app/android/keystore.properties` (no se sube a git).
-- **Qué hacer YA:** copia **los dos archivos** a un sitio seguro fuera del PC: un pendrive
+- **Dónde está la clave (el *keystore*):** `C:\Users\SuFran\.pachanga\pachanga.jks`, fuera del repositorio.
+- **Su contraseña:** dentro de `app\android\keystore.properties`, que no se sube a git.
+- **Qué hacer YA:** copia **esos dos archivos** a un sitio seguro fuera del PC: un pendrive
   que guardes, tu Google Drive personal, un gestor de contraseñas… Si se rompe el disco y no
   tienes copia, no hay forma de recuperarla.
 - **Nunca** los subas a GitHub ni los mandes por WhatsApp.
 
-Gradle usa esa misma firma para la versión de pruebas (debug) y para la final (release).
+El script firma con esa clave tanto la versión de pruebas como la versión final.
 
-### 6.5 Número de versión
+### 6.6 Número de versión
 
-La versión está en **un solo sitio**: el campo `"version"` de `app/package.json`
-(por ejemplo `0.1.0`). Android necesita además un número entero que **siempre suba**
-(`versionCode`), y se calcula solo: `0.1.0` → `100`, `1.2.3` → `10203`.
+La versión está en **un solo sitio**: la línea `"version"` de `app/package.json`
+(por ejemplo `"version": "0.1.0"`). Android necesita además un número entero que **siempre
+suba** (`versionCode`), y se calcula solo: `0.1.0` → `100`, `1.2.3` → `10203`.
+
+Para subirla, en la carpeta `app`:
 
 ```powershell
 npm run version:subir         # 0.1.0 -> 0.1.1   (arreglos pequeños)
 npm run version:subir-menor   # 0.1.1 -> 0.2.0   (novedades)
 ```
 
-Súbela antes de compilar una versión para repartir. Para tus pruebas no hace falta.
+Súbela antes de fabricar una versión para repartir. Para tus pruebas no hace falta.
 
-### 6.6 Instalarlo en el móvil de un colega (más adelante)
+### 6.7 Instalarlo en el móvil de un colega (más adelante)
 
 Cuando el backend esté en internet (Fase 4), el APK se podrá pasar por WhatsApp o Drive. Al
 abrirlo, Android pedirá **permitir instalar apps de orígenes desconocidos** para WhatsApp,
@@ -371,6 +436,7 @@ sentido, porque el backend solo existe en tu PC.
 | `app` | `npm install` | Instala las dependencias (la primera vez o si cambia `package.json`) |
 | `app` | `npm run dev` | Enciende la app en el puerto 5173 |
 | `app` | `npm run build` | Genera la web final en `app/dist` |
+| `app` | `.\compilar-apk.ps1 -ComprobarMovil` | Dice si el móvil está bien conectado y si el backend está encendido |
 | `app` | `.\compilar-apk.ps1 -Instalar` | Compila el APK de pruebas y lo instala en el móvil conectado por USB |
 | `app` | `.\compilar-apk.ps1 -SoloConectar` | Vuelve a conectar el móvil con el backend del PC (tras desenchufar el cable) |
 | `app` | `npm run version:subir` | Sube la versión de la app (0.1.0 → 0.1.1) |
@@ -389,8 +455,10 @@ sentido, porque el backend solo existe en tu PC.
 | He cambiado código del backend y no se nota | Si no usas `--debug`, apágalo (Ctrl+C) y vuelve a encenderlo. |
 | *"no such column"* u otros errores de base de datos | Ver [Empezar de cero](#54-empezar-de-cero). |
 | He olvidado mi PIN de admin | Si hay otro admin, que te dé uno nuevo desde Admin → Peña. Si no, empieza de cero. |
-| `compilar-apk.ps1`: *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1 b](#61-preparar-el-pc-solo-la-primera-vez). |
-| `compilar-apk.ps1`: *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1 a](#61-preparar-el-pc-solo-la-primera-vez). |
-| *"No hay ningún móvil conectado"* | Cable de datos (no solo de carga), depuración USB activada y aviso aceptado en el móvil ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). |
+| *"No se puede cargar el archivo ... compilar-apk.ps1 porque la ejecución de scripts está deshabilitada"* | Igual que con `Activate.ps1`: ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y responde **S**. |
+| *"El término '.\compilar-apk.ps1' no se reconoce"* | No estás en la carpeta `app`: escribe `cd app` (o `cd ..\app` si estás en `backend`). |
+| `compilar-apk.ps1`: *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
+| `compilar-apk.ps1`: *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
+| El script dice `NO` sobre el móvil | Lee el mensaje amarillo: casi siempre es autorizar el PC en el aviso del móvil, activar la depuración USB o usar un cable de datos ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). Repite `.\compilar-apk.ps1 -ComprobarMovil` hasta que salga `OK`. |
 | La app del móvil se queda en *"Conectando…"* | ¿Está `flask run` encendido? ¿Has desenchufado el cable? Ejecuta `.\compilar-apk.ps1 -SoloConectar`. |
 | *"INSTALL_FAILED_UPDATE_INCOMPATIBLE"* al instalar | Hay instalada una versión firmada con otra clave: desinstala la app del móvil una vez y vuelve a instalar. |
