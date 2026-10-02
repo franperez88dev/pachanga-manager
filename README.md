@@ -7,13 +7,14 @@ valoraciones secretas.
 | Carpeta / archivo | Qué es |
 |---|---|
 | `backend/` | La API (el "servidor"): Flask + SQLAlchemy. En local guarda los datos en SQLite. |
-| `app/` | La app: React + Vite. Desde la Fase 3, también el proyecto Android (Capacitor). |
+| `app/` | La app: React + Vite. En `app/android`, el proyecto Android (Capacitor) que genera el APK. |
+| `recursos-play/` | Imágenes para la ficha de Google Play (se usarán al publicar). |
 | `referencia/` | Prototipo y vista previa del diseño (no forman parte de la app). |
 | `PROMPT.md` | El encargo original. |
 | `DECISIONES.md` | Cambios acordados después. **Si contradice a `PROMPT.md`, manda `DECISIONES.md`.** |
 
-> Este README cubre la **etapa local** (probar en el ordenador). En las Fases 3 a 5 se
-> añadirá cómo generar el APK, instalarlo en el móvil, desplegar el backend y repartir versiones.
+> Este README cubre la **etapa local**: probar en el ordenador y en tu móvil con el backend
+> corriendo en tu PC. Más adelante se añadirá cómo desplegar el backend y repartir el APK.
 
 ---
 
@@ -160,6 +161,9 @@ La sesión se guarda en el navegador. Para tener dos sesiones a la vez:
 - Ventana de **incógnito** (Ctrl+Shift+N): entra como un jugador de prueba, por ejemplo
   **Feragi + 1111**.
 
+
+
+
 ### 5.3 Guion de prueba completo
 
 Sigue estos pasos en orden; al lado de cada uno, lo que deberías ver.
@@ -222,7 +226,139 @@ Si quieres borrar todos los datos de prueba:
 
 ---
 
-## 6. Resumen de comandos
+## 6. La app en tu móvil (APK de pruebas)
+
+La app web de `app/` se mete dentro de una app Android con **Capacitor**. El resultado es un
+**APK**: el archivo que se instala en el móvil. En esta etapa el móvil habla con el backend de
+**tu PC** a través del **cable USB**.
+
+### 6.1 Preparar el PC (solo la primera vez)
+
+Además de Android Studio, para compilar hacen falta dos cosas que se descargan desde él.
+
+**a) La plataforma Android 36**
+
+1. Abre Android Studio (`F:\Android Studio\bin\studio64.exe`). Si es la primera vez, sigue el
+   asistente con las opciones por defecto (*Standard*) y acepta las licencias.
+2. En la pantalla de bienvenida: **More Actions → SDK Manager** (con un proyecto abierto:
+   **File → Settings → Languages & Frameworks → Android SDK**).
+3. Comprueba que arriba, en *Android SDK Location*, pone
+   `C:\Users\SuFran\AppData\Local\Android\Sdk`.
+4. Pestaña **SDK Platforms**: marca **Android 16 (API 36)**.
+5. Pestaña **SDK Tools**: marca **Show Package Details** (abajo a la derecha) y, dentro de
+   *Android SDK Build-Tools*, marca la versión **36** más alta. Marca también (o actualiza)
+   **Android SDK Platform-Tools**.
+6. **Apply → OK** y espera a que termine la descarga.
+
+**b) Un JDK 21** (Android Studio trae Java 25, que el Gradle de Capacitor 8 no admite)
+
+1. En Android Studio: **File → Open** y elige la carpeta `F:\GitHub\pachanga-manager\app\android`.
+2. Al abrirlo intentará "sincronizar" y probablemente falle diciendo que la versión de Java
+   no es compatible. Es normal.
+3. Ve a **File → Settings → Build, Execution, Deployment → Build Tools → Gradle**.
+4. En **Gradle JDK**, despliega la lista y elige **Download JDK…** → *Version* **21**,
+   *Vendor* **Eclipse Temurin** → **Download**. Se guarda en `C:\Users\SuFran\.jdks\`.
+5. **OK**, y luego el botón del elefante con flecha (**Sync Project with Gradle Files**).
+   Esta vez debe terminar bien.
+
+> Después puedes cerrar Android Studio: para compilar usaremos un script desde VS Code.
+> Android Studio solo hacía falta para descargar estas dos cosas.
+
+### 6.2 Preparar el móvil (solo la primera vez)
+
+1. **Activar las opciones de desarrollador:** *Ajustes → Información del teléfono* y toca
+   **7 veces** sobre **Número de compilación** (en algunos móviles está dentro de
+   *Información de software*). Te pedirá tu PIN de desbloqueo y dirá "Ya eres desarrollador".
+2. **Activar la depuración USB:** *Ajustes → Sistema → Opciones de desarrollador →*
+   **Depuración USB**. En los Xiaomi activa también **Instalar vía USB**.
+3. **Conecta el móvil al PC con un cable USB de datos** (algunos cables solo sirven para cargar).
+4. En el móvil saldrá **"¿Permitir depuración USB?"**: marca *Permitir siempre desde este
+   ordenador* y acepta.
+
+Para comprobarlo, en una terminal:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices
+```
+
+Debe salir una línea con un código y la palabra `device`. Si pone `unauthorized`, mira el
+aviso del paso 4 en el móvil.
+
+### 6.3 Compilar, instalar y probar
+
+1. **Terminal 1:** enciende el backend como siempre (apartado 3): `flask run --debug`.
+2. **Terminal 2** (carpeta `app`), con el móvil conectado por USB:
+
+   ```powershell
+   .\compilar-apk.ps1 -Instalar
+   ```
+
+   El script va explicando cada paso mientras lo ejecuta:
+
+   | Paso | Comando | Qué hace |
+   |---|---|---|
+   | 1 | — | Busca el JDK 21 y el SDK de Android |
+   | 2 | `npm run build:movil` | Compila la web con la URL del backend para el móvil (`app/.env.movil`) |
+   | 3 | `npx cap sync android` | Copia esa web dentro del proyecto Android |
+   | 4 | `gradlew.bat assembleDebug` (en `app/android`) | Genera el APK firmado. **La primera vez tarda varios minutos** (descarga Gradle y librerías) |
+   | 5 | `adb install -r ...` | Instala el APK en el móvil, encima de la versión anterior y sin borrar datos |
+   | 6 | `adb reverse tcp:5000 tcp:5000` | Hace que el `127.0.0.1:5000` **del móvil** sea el backend **de tu PC**, por el cable |
+
+   El APK queda en `app/android/app/build/outputs/apk/debug/app-debug.apk`.
+
+3. Abre **Pachanga Manager** en el móvil y entra con tu mote y tu PIN.
+
+**Cada vez que desconectes y vuelvas a conectar el cable** (o reinicies el PC o el móvil), el
+paso 6 se pierde y la app se queda en "Conectando con el servidor…". Para recuperarlo sin
+volver a compilar:
+
+```powershell
+.\compilar-apk.ps1 -SoloConectar
+```
+
+**Si cambias código de la app**, vuelve a ejecutar `.\compilar-apk.ps1 -Instalar`: se instala
+encima y conservas la sesión. Los cambios del backend no necesitan reinstalar nada.
+
+### 6.4 La firma del APK (¡importante!)
+
+Android solo deja instalar una versión nueva **encima** de la que ya tienes si las dos están
+**firmadas con la misma clave**. Esa clave es como el sello de la peña: demuestra que la
+actualización viene del mismo sitio que la app original. Si algún día la pierdes, ningún
+móvil aceptará tus actualizaciones. Cada colega tendría que **desinstalar la app** (perdiendo
+su sesión) e instalar la nueva, y en Google Play **no podrías volver a actualizarla nunca**.
+
+- **Dónde está:** `C:\Users\SuFran\.pachanga\pachanga.jks` (el *keystore*, fuera del repositorio).
+- **Su contraseña:** en `app/android/keystore.properties` (no se sube a git).
+- **Qué hacer YA:** copia **los dos archivos** a un sitio seguro fuera del PC: un pendrive
+  que guardes, tu Google Drive personal, un gestor de contraseñas… Si se rompe el disco y no
+  tienes copia, no hay forma de recuperarla.
+- **Nunca** los subas a GitHub ni los mandes por WhatsApp.
+
+Gradle usa esa misma firma para la versión de pruebas (debug) y para la final (release).
+
+### 6.5 Número de versión
+
+La versión está en **un solo sitio**: el campo `"version"` de `app/package.json`
+(por ejemplo `0.1.0`). Android necesita además un número entero que **siempre suba**
+(`versionCode`), y se calcula solo: `0.1.0` → `100`, `1.2.3` → `10203`.
+
+```powershell
+npm run version:subir         # 0.1.0 -> 0.1.1   (arreglos pequeños)
+npm run version:subir-menor   # 0.1.1 -> 0.2.0   (novedades)
+```
+
+Súbela antes de compilar una versión para repartir. Para tus pruebas no hace falta.
+
+### 6.6 Instalarlo en el móvil de un colega (más adelante)
+
+Cuando el backend esté en internet (Fase 4), el APK se podrá pasar por WhatsApp o Drive. Al
+abrirlo, Android pedirá **permitir instalar apps de orígenes desconocidos** para WhatsApp,
+Drive o el gestor de archivos que se use: hay que aceptarlo una vez. Por ahora no tiene
+sentido, porque el backend solo existe en tu PC.
+
+---
+
+## 7. Resumen de comandos
 
 | Dónde | Comando | Qué hace |
 |---|---|---|
@@ -234,11 +370,14 @@ Si quieres borrar todos los datos de prueba:
 | `backend` | `flask demo-votar N --si 5 --no 1` | Solo pruebas: votos en el partido N |
 | `app` | `npm install` | Instala las dependencias (la primera vez o si cambia `package.json`) |
 | `app` | `npm run dev` | Enciende la app en el puerto 5173 |
-| `app` | `npm run build` | Genera la versión final en `app/dist` (se usará en la Fase 3) |
+| `app` | `npm run build` | Genera la web final en `app/dist` |
+| `app` | `.\compilar-apk.ps1 -Instalar` | Compila el APK de pruebas y lo instala en el móvil conectado por USB |
+| `app` | `.\compilar-apk.ps1 -SoloConectar` | Vuelve a conectar el móvil con el backend del PC (tras desenchufar el cable) |
+| `app` | `npm run version:subir` | Sube la versión de la app (0.1.0 → 0.1.1) |
 
 ---
 
-## 7. Problemas frecuentes
+## 8. Problemas frecuentes
 
 | Síntoma | Solución |
 |---|---|
@@ -250,3 +389,8 @@ Si quieres borrar todos los datos de prueba:
 | He cambiado código del backend y no se nota | Si no usas `--debug`, apágalo (Ctrl+C) y vuelve a encenderlo. |
 | *"no such column"* u otros errores de base de datos | Ver [Empezar de cero](#54-empezar-de-cero). |
 | He olvidado mi PIN de admin | Si hay otro admin, que te dé uno nuevo desde Admin → Peña. Si no, empieza de cero. |
+| `compilar-apk.ps1`: *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1 b](#61-preparar-el-pc-solo-la-primera-vez). |
+| `compilar-apk.ps1`: *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1 a](#61-preparar-el-pc-solo-la-primera-vez). |
+| *"No hay ningún móvil conectado"* | Cable de datos (no solo de carga), depuración USB activada y aviso aceptado en el móvil ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). |
+| La app del móvil se queda en *"Conectando…"* | ¿Está `flask run` encendido? ¿Has desenchufado el cable? Ejecuta `.\compilar-apk.ps1 -SoloConectar`. |
+| *"INSTALL_FAILED_UPDATE_INCOMPATIBLE"* al instalar | Hay instalada una versión firmada con otra clave: desinstala la app del móvil una vez y vuelve a instalar. |

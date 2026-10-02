@@ -57,5 +57,19 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - Navegación inferior: Inicio · Partidos · Tabla · Valorar · (Admin) · Perfil.
 - Comandos solo para pruebas en local: `flask datos-demo` y `flask demo-votar` (se niegan a funcionar fuera de SQLite).
 
+## Fase 3: APK (02/10/2026)
+- **Capacitor 8.5** con `appId` `com.pachanga.manager`. El proyecto Android está en `app/android` y sí va a git (menos lo generado).
+- **JDK 21** para compilar: Gradle 8.14.3 (el que trae Capacitor 8) solo funciona hasta Java 24, y el JBR de Android Studio es Java 25. Se descarga desde Android Studio (*Gradle JDK → Download JDK*).
+- **targetSdk / compileSdk 36** (Android 16), que es lo que exige Google Play desde el 31/08/2026; minSdk 24.
+- **Móvil contra el backend local por USB** con `adb reverse tcp:5000 tcp:5000` y la URL `http://127.0.0.1:5000` (`app/.env.movil`, `npm run build:movil`).
+- **HTTP sin cifrar solo en la versión de pruebas** y solo hacia `localhost`/`127.0.0.1` (`app/android/app/src/debug/`). La versión release no lo permite: solo HTTPS.
+- No se ha configurado la alternativa por WiFi (IP del PC): necesitaría permitir HTTP hacia una IP de la red y "contenido mixto".
+- **Firma**: un único keystore en `C:\Users\SuFran\.pachanga\pachanga.jks` (fuera del repo), con la contraseña en `app/android/keystore.properties` (no va a git). Lo usan tanto la versión debug como la release. Alternativa para GitHub Actions: variables `PACHANGA_KEYSTORE_*`.
+- **Versión** en un solo sitio (`app/package.json`). `versionCode = mayor·10000 + menor·100 + parche`. Se sube con `npm run version:subir`.
+- **Icono adaptativo** (balón blanco sobre verde, con versión monocromo para los iconos temáticos) y pantalla de arranque verde con el balón. El mismo diseño está en `recursos-play/icono-512.png` y en el favicon.
+- **Botón "atrás"** de Android: vuelve a la pantalla anterior; en Inicio cierra la app.
+- **Márgenes de pantalla** con las variables `--safe-area-inset-*` que inyecta Capacitor 8, para que nada quede bajo la barra de estado.
+- Permisos de Android: solo `INTERNET`.
+
 ## Pendiente de decidir más adelante
 - Migraciones de base de datos (Flask-Migrate) antes de la Fase 4.
