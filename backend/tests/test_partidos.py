@@ -132,6 +132,17 @@ def test_solo_votan_convocados_y_con_equipos(client, admin, plantilla, partido_c
                       headers=plantilla[0].headers).status_code == 409
 
 
+def test_la_lista_avisa_de_votacion_pendiente(client, admin, plantilla, partido_con_equipos):
+    def debo_votar(j):
+        partidos = client.get("/api/partidos", headers=j.headers).get_json()["partidos"]
+        return next(p for p in partidos if p["id"] == partido_con_equipos)["debo_votar"]
+
+    assert debo_votar(plantilla[0]) is True
+    votar(client, plantilla[:1], partido_con_equipos)
+    assert debo_votar(plantilla[0]) is False
+    assert debo_votar(plantilla[11]) is False  # no convocado
+
+
 def test_cada_uno_ve_su_voto_pero_no_el_de_los_demas(client, plantilla, partido_con_equipos):
     pid = partido_con_equipos
     votar(client, plantilla[:1], pid, cambiar=True)
@@ -254,9 +265,22 @@ def test_planilla_que_no_cuadra_se_guarda_con_avisos(client, admin, partido_cerr
     r = client.put(f"/api/partidos/{pid}/estadisticas", json={"jugadores": planilla}, headers=admin.headers)
     assert r.status_code == 200
     avisos = " ".join(r.get_json()["avisos"])
-    assert "el Blanco suman 1" in avisos and "dice 3" in avisos
-    assert "el Negro suman 0" in avisos
+    assert "Faltan goles de Nevados C.F.: hay 1" in avisos and "el resultado es 3" in avisos
+    assert "Faltan goles de Sombras F.C.: hay 0" in avisos
     assert "más asistencias" in avisos
+
+
+def test_planilla_no_admite_mas_goles_que_el_resultado(client, admin, partido_cerrado):
+    """3-2: si el Blanco suma 4 (entre goles propios y gpp del rival), no se puede guardar."""
+    pid = partido_cerrado
+    blancos, negros = equipos_de(client, admin, pid)
+    url = f"/api/partidos/{pid}/estadisticas"
+    demasiados = [{"id": blancos[0], "goles": 3, "gpp": 0}, {"id": negros[0], "goles": 0, "gpp": 1}]
+    r = client.put(url, json={"jugadores": demasiados}, headers=admin.headers)
+    assert r.status_code == 400 and "Nevados C.F. tendría 4 goles" in r.get_json()["error"]
+    # Justo el resultado sí vale (y que falten también)
+    justos = [{"id": blancos[0], "goles": 2, "gpp": 0}, {"id": negros[0], "goles": 0, "gpp": 1}]
+    assert client.put(url, json={"jugadores": justos}, headers=admin.headers).status_code == 200
 
 
 def test_planilla_valida_jugadores_y_numeros(client, admin, plantilla, partido_cerrado):
@@ -278,15 +302,16 @@ def test_la_planilla_sustituye_a_lo_anterior(client, admin, plantilla, partido_c
     """Si un jugador ya había apuntado algo, la planilla del admin manda."""
     pid = partido_cerrado
     j = plantilla[0]
-    client.post(f"/api/partidos/{pid}/reportes", json={"goles": 5, "asistencias": 0}, headers=j.headers)
+    assert client.post(f"/api/partidos/{pid}/reportes", json={"goles": 2, "asistencias": 0},
+                       headers=j.headers).status_code == 201
     ver = client.get(f"/api/partidos/{pid}/estadisticas", headers=admin.headers).get_json()
     fila = next(f for f in ver["jugadores"] if f["id"] == j.id)
-    assert fila["goles"] == 0 and fila["pendiente"] == {"goles": 5, "gpp": 0, "asistencias": 0}
+    assert fila["goles"] == 0 and fila["pendiente"] == {"goles": 2, "gpp": 0, "asistencias": 0}
 
     client.put(f"/api/partidos/{pid}/estadisticas",
-               json={"jugadores": [{"id": j.id, "goles": 2, "gpp": 0, "asistencias": 0}]}, headers=admin.headers)
+               json={"jugadores": [{"id": j.id, "goles": 1, "gpp": 0, "asistencias": 0}]}, headers=admin.headers)
     perfil = client.get(f"/api/jugadores/{j.id}", headers=j.headers).get_json()["jugador"]
-    assert perfil["goles"] == 2
+    assert perfil["goles"] == 1
     assert client.get("/api/admin/reportes", headers=admin.headers).get_json()["reportes"] == []
 
 
@@ -299,6 +324,8 @@ def test_no_se_reporta_hasta_que_el_admin_cierra(client, plantilla, partido_con_
 
 def test_flujo_reportes_de_jugadores_y_clasificacion(client, admin, plantilla, partido_cerrado):
     pid = partido_cerrado
+    # Resultado amplio: aquí se prueba el flujo, no el límite de goles
+    client.put(f"/api/partidos/{pid}/resultado", json={"goles_blanco": 15, "goles_negro": 15}, headers=admin.headers)
     goleador, asistente, tramposo, despistado = plantilla[0], plantilla[1], plantilla[2], plantilla[3]
     url = f"/api/partidos/{pid}/reportes"
 
@@ -381,3 +408,31 @@ def test_cors_permite_la_app_capacitor(client):
     assert r.headers.get("Access-Control-Allow-Origin") == "https://localhost"
     r = client.get("/health", headers={"Origin": "https://malvado.example"})
     assert "Access-Control-Allow-Origin" not in r.headers
+
+
+# ------------------------------------------------------------ nunca más goles que el resultado
+def test_jugador_no_puede_apuntar_mas_goles_que_el_resultado(client, plantilla, partido_cerrado):
+    """3-2: nadie puede apuntarse 4 goles (su equipo tendría más que el resultado)."""
+    r = client.post(f"/api/partidos/{partido_cerrado}/reportes", json={"goles": 4}, headers=plantilla[0].headers)
+    assert r.status_code == 400 and "más goles que en el resultado" in r.get_json()["error"]
+
+
+def test_admin_no_puede_confirmar_un_reporte_que_pase_del_resultado(client, admin, plantilla, partido_cerrado):
+    """3-2: dos del Blanco apuntan 2 goles cada uno. Cada reporte cabe por separado,
+    pero al confirmar el segundo el Blanco tendría 4: se bloquea."""
+    pid = partido_cerrado
+    blancos, _ = equipos_de(client, admin, pid)
+    por_id = {j.id: j for j in plantilla}
+    ids_reportes = []
+    for uid in blancos[:2]:
+        r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 2}, headers=por_id[uid].headers)
+        assert r.status_code == 201
+        ids_reportes.append(r.get_json()["reporte"]["id"])
+    assert client.post(f"/api/admin/reportes/{ids_reportes[0]}/confirmar", headers=admin.headers).status_code == 200
+    r = client.post(f"/api/admin/reportes/{ids_reportes[1]}/confirmar", headers=admin.headers)
+    assert r.status_code == 409 and "Nevados C.F. tendría 4 goles" in r.get_json()["error"]
+    # Descartarlo sí se puede
+    assert client.post(f"/api/admin/reportes/{ids_reportes[1]}/descartar", headers=admin.headers).status_code == 200
+    # Y un tercero del Blanco ya no puede ni enviar 2 goles (2 confirmados + 2 > 3)
+    r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 2}, headers=por_id[blancos[2]].headers)
+    assert r.status_code == 400

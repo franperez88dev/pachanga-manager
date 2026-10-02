@@ -46,7 +46,15 @@ def partido_resumen(p, usuario):
         "num_convocados": len(p.jugadores),
         "convocado": mio is not None,
         "mi_equipo": mio.equipo if mio else None,
+        # Para avisar en Inicio: convocado, con votación abierta y sin haber votado aún
+        "debo_votar": mio is not None and votacion_pendiente(p, usuario),
     }
+
+
+def votacion_pendiente(p, usuario):
+    if not (p.abierto and p.equipos_generados and p.num_repartos < current_app.config["MAX_REPARTOS"]):
+        return False
+    return VotoRebarajar.query.filter_by(match_id=p.id, user_id=usuario.id, ronda=p.num_repartos).first() is None
 
 
 def partido_detalle(p, usuario):

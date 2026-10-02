@@ -25,7 +25,9 @@ from ..models import (
 )
 from ..serializadores import partido_detalle, partido_resumen, reporte, usuario_publico
 from ..seguridad import requiere_admin, requiere_aprobado
-from ..servicios import avisos_marcador, deshacer_equipos, fuerzas_de
+from ..servicios import (
+    avisos_marcador, con_reporte, deshacer_equipos, exceso_marcador, fuerzas_de, stats_confirmadas_del_partido,
+)
 from . import cuerpo_json, entero
 
 bp = Blueprint("partidos", __name__, url_prefix="/api/partidos")
@@ -339,6 +341,11 @@ def guardar_planilla(pid):
             raise ErrorApi(400, "Cada jugador de la planilla debe ser un convocado distinto")
         datos[uid] = leer_stats(fila)
 
+    # Que falten goles se permite (avisos); que sobren respecto al resultado, no
+    error = exceso_marcador(partido, datos)
+    if error:
+        raise ErrorApi(400, error)
+
     StatReport.query.filter_by(match_id=partido.id).delete(synchronize_session=False)
     for uid, valores in datos.items():
         if any(valores.values()):
@@ -359,6 +366,8 @@ def reportar(pid):
     valores = leer_stats(cuerpo_json())
     if not any(valores.values()):
         raise ErrorApi(400, "Apunta al menos un gol o un gpp")
+    if exceso_marcador(partido, con_reporte(stats_confirmadas_del_partido(partido), g.usuario.id, valores)):
+        raise ErrorApi(400, "Con eso habría más goles que en el resultado del partido. Revisa lo que apuntas")
     ya = StatReport.query.filter(
         StatReport.match_id == partido.id,
         StatReport.user_id == g.usuario.id,

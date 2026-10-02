@@ -117,38 +117,75 @@ def estadisticas(ids=None):
     return datos
 
 
-def avisos_marcador(partido, filas):
-    """Avisos (no bloquean) si los goles apuntados no cuadran con el resultado.
+NOMBRE_EQUIPO = {EQUIPO_BLANCO: "Nevados C.F.", EQUIPO_NEGRO: "Sombras F.C."}
+_RIVAL = {EQUIPO_BLANCO: EQUIPO_NEGRO, EQUIPO_NEGRO: EQUIPO_BLANCO}
 
-    `filas`: {user_id: {"goles", "gpp", "asistencias"}} de los convocados.
-    Un gpp de un jugador del Blanco suma un gol al Negro, y al revés.
-    """
+
+def _sumas_por_equipo(partido, filas):
+    """Suma lo apuntado en `filas` ({user_id: {"goles", "gpp", "asistencias"}}) por equipo.
+    Un gpp de un jugador del Blanco suma un gol al Negro, y al revés."""
     equipo_de = {mp.user_id: mp.equipo for mp in partido.jugadores}
-    rival = {EQUIPO_BLANCO: EQUIPO_NEGRO, EQUIPO_NEGRO: EQUIPO_BLANCO}
-    nombres = {EQUIPO_BLANCO: "el Blanco", EQUIPO_NEGRO: "el Negro"}
-    marcador = {EQUIPO_BLANCO: partido.goles_blanco, EQUIPO_NEGRO: partido.goles_negro}
-
-    goles_jugadores = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
-    goles_en_marcador = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
+    en_marcador = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}  # goles que cuentan en el resultado
+    de_jugadores = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}  # goles marcados por sus jugadores
     asistencias = {EQUIPO_BLANCO: 0, EQUIPO_NEGRO: 0}
     for uid, fila in filas.items():
         equipo = equipo_de.get(uid)
-        if equipo not in rival:
+        if equipo not in _RIVAL:
             continue
-        goles_jugadores[equipo] += fila.get("goles", 0)
-        goles_en_marcador[equipo] += fila.get("goles", 0)
-        goles_en_marcador[rival[equipo]] += fila.get("gpp", 0)
+        en_marcador[equipo] += fila.get("goles", 0)
+        en_marcador[_RIVAL[equipo]] += fila.get("gpp", 0)
+        de_jugadores[equipo] += fila.get("goles", 0)
         asistencias[equipo] += fila.get("asistencias", 0)
+    return en_marcador, de_jugadores, asistencias
 
+
+def marcador_de(partido):
+    return {EQUIPO_BLANCO: partido.goles_blanco, EQUIPO_NEGRO: partido.goles_negro}
+
+
+def exceso_marcador(partido, filas):
+    """Mensaje de error si algún equipo tendría MÁS goles que el resultado; None si no.
+    Que falten goles está permitido (se pueden apuntar más tarde); que sobren, no."""
+    en_marcador, _, _ = _sumas_por_equipo(partido, filas)
+    for equipo, resultado in marcador_de(partido).items():
+        if resultado is not None and en_marcador[equipo] > resultado:
+            return (f"{NOMBRE_EQUIPO[equipo]} tendría {en_marcador[equipo]} goles (contando los gpp del rival) "
+                    f"y el resultado es {resultado}. No puede haber más goles que en el resultado.")
+    return None
+
+
+def avisos_marcador(partido, filas):
+    """Avisos que NO bloquean: faltan goles por apuntar, o más asistencias que goles."""
+    en_marcador, de_jugadores, asistencias = _sumas_por_equipo(partido, filas)
     avisos = []
-    for equipo in (EQUIPO_BLANCO, EQUIPO_NEGRO):
-        if marcador[equipo] is not None and goles_en_marcador[equipo] != marcador[equipo]:
-            avisos.append(f"Los goles de {nombres[equipo]} suman {goles_en_marcador[equipo]} "
-                          f"(contando gpp del rival), pero el resultado dice {marcador[equipo]}")
-        if asistencias[equipo] > goles_jugadores[equipo]:
-            avisos.append(f"{nombres[equipo].capitalize()} tiene más asistencias "
-                          f"({asistencias[equipo]}) que goles de sus jugadores ({goles_jugadores[equipo]})")
+    for equipo, resultado in marcador_de(partido).items():
+        if resultado is not None and en_marcador[equipo] < resultado:
+            avisos.append(f"Faltan goles de {NOMBRE_EQUIPO[equipo]}: hay {en_marcador[equipo]} apuntados "
+                          f"(contando gpp del rival) y el resultado es {resultado}")
+        if asistencias[equipo] > de_jugadores[equipo]:
+            avisos.append(f"{NOMBRE_EQUIPO[equipo]} tiene más asistencias "
+                          f"({asistencias[equipo]}) que goles de sus jugadores ({de_jugadores[equipo]})")
     return avisos
+
+
+def stats_confirmadas_del_partido(partido):
+    """{user_id: {"goles", "gpp", "asistencias"}} con lo YA confirmado en este partido."""
+    filas = {}
+    for r in StatReport.query.filter_by(match_id=partido.id, estado=REPORTE_CONFIRMADO):
+        fila = filas.setdefault(r.user_id, {"goles": 0, "gpp": 0, "asistencias": 0})
+        fila["goles"] += r.goles
+        fila["gpp"] += r.gpp
+        fila["asistencias"] += r.asistencias
+    return filas
+
+
+def con_reporte(filas, reporte_usuario, valores):
+    """Copia de `filas` sumando los `valores` de un reporte más (para comprobar antes de guardar)."""
+    resultado = {uid: dict(v) for uid, v in filas.items()}
+    fila = resultado.setdefault(reporte_usuario, {"goles": 0, "gpp": 0, "asistencias": 0})
+    for campo in ("goles", "gpp", "asistencias"):
+        fila[campo] += valores.get(campo, 0)
+    return resultado
 
 
 def fuerzas_de(ids):

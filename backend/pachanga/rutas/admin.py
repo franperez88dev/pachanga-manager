@@ -9,7 +9,9 @@ from ..models import (
 )
 from ..serializadores import reporte, usuario_admin
 from ..seguridad import requiere_admin
-from ..servicios import numero_admins, regenerar_pin
+from ..servicios import (
+    con_reporte, exceso_marcador, numero_admins, regenerar_pin, stats_confirmadas_del_partido,
+)
 from . import cuerpo_json
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
@@ -107,6 +109,11 @@ def _resolver_reporte(rid, nuevo_estado):
         raise ErrorApi(404, "Reporte no encontrado")
     if r.estado != REPORTE_PENDIENTE:
         raise ErrorApi(409, "Ese reporte ya no está pendiente")
+    if nuevo_estado == REPORTE_CONFIRMADO:
+        valores = {"goles": r.goles, "gpp": r.gpp, "asistencias": r.asistencias}
+        error = exceso_marcador(r.partido, con_reporte(stats_confirmadas_del_partido(r.partido), r.user_id, valores))
+        if error:
+            raise ErrorApi(409, f"No se puede confirmar: {error} Descártalo o corrige la planilla.")
     r.estado = nuevo_estado
     db.session.commit()
     return jsonify(reporte=reporte(r))

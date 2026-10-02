@@ -37,7 +37,7 @@ def peña_con_valoraciones(client, admin, plantilla, partido_con_equipos):
         client.post(f"/api/partidos/{pid}/voto", json={"cambiar": True}, headers=j.headers)
     assert client.post(f"/api/partidos/{pid}/equipos", json={"rebarajar": True},
                        headers=admin.headers).status_code == 200
-    client.post(f"/api/partidos/{pid}/cerrar", json={"goles_blanco": 1, "goles_negro": 0}, headers=admin.headers)
+    client.post(f"/api/partidos/{pid}/cerrar", json={"goles_blanco": 5, "goles_negro": 5}, headers=admin.headers)
     r = client.post(f"/api/partidos/{pid}/reportes", json={"goles": 1, "asistencias": 0},
                     headers=plantilla[0].headers)
     assert r.status_code == 201
