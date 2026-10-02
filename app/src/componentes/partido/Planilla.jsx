@@ -16,8 +16,10 @@ const PASOS = [
   ...(MOSTRAR_ASISTENCIAS ? [{ titulo: "Asistencias", campos: [["asistencias", "Asist."]] }] : []),
 ];
 
-// Mismo cálculo que el backend (servicios.avisos_marcador), para avisar mientras se edita
-function calcularAvisos(jugadores, valores, resultado) {
+// Mismo cálculo que el backend (servicios.exceso_marcador y avisos_marcador), para avisar mientras se edita.
+//  - errores: algún equipo tiene MÁS goles que el resultado -> no se puede confirmar
+//  - avisos: faltan goles (se pueden apuntar más tarde) -> se puede confirmar igualmente
+function revisarMarcador(jugadores, valores, resultado) {
   const rival = { blanco: "negro", negro: "blanco" };
   const marcador = { blanco: 0, negro: 0 };
   const golesPropios = { blanco: 0, negro: 0 };
@@ -29,16 +31,19 @@ function calcularAvisos(jugadores, valores, resultado) {
     golesPropios[j.equipo] += v.goles;
     asistencias[j.equipo] += v.asistencias;
   }
+  const errores = [];
   const avisos = [];
   for (const color of ["blanco", "negro"]) {
-    if (marcador[color] !== resultado[color]) {
-      avisos.push(`${EQUIPOS[color].nombre}: los goles suman ${marcador[color]} (con los gpp del rival) y el resultado dice ${resultado[color]}.`);
+    if (marcador[color] > resultado[color]) {
+      errores.push(`${EQUIPOS[color].nombre}: hay ${marcador[color]} goles apuntados (con los gpp del rival) y el resultado es ${resultado[color]}. Quita ${marcador[color] - resultado[color]}.`);
+    } else if (marcador[color] < resultado[color]) {
+      avisos.push(`${EQUIPOS[color].nombre}: faltan ${resultado[color] - marcador[color]} por apuntar (hay ${marcador[color]} de ${resultado[color]}).`);
     }
     if (MOSTRAR_ASISTENCIAS && asistencias[color] > golesPropios[color]) {
       avisos.push(`${EQUIPOS[color].nombre}: hay más asistencias que goles.`);
     }
   }
-  return avisos;
+  return { errores, avisos };
 }
 
 export default function Planilla({ partido, alTerminar }) {
@@ -67,7 +72,7 @@ export default function Planilla({ partido, alTerminar }) {
   if (error) return <MensajeError mensaje={error} />;
   if (!planilla) return <Cargando />;
 
-  const avisos = calcularAvisos(planilla.jugadores, valores, planilla.resultado);
+  const { errores, avisos } = revisarMarcador(planilla.jugadores, valores, planilla.resultado);
   const { titulo, campos } = PASOS[paso];
   const cambiar = (id, campo, v) => setValores({ ...valores, [id]: { ...valores[id], [campo]: v } });
 
@@ -112,17 +117,23 @@ export default function Planilla({ partido, alTerminar }) {
           ))}
         </div>
       ))}
-      {avisos.length > 0 && (
+      {errores.length > 0 && (
+        <div className="banner banner-error" role="alert">
+          {errores.map((e) => <p key={e}>⛔ {e}</p>)}
+          <p>No puede haber más goles que en el resultado.</p>
+        </div>
+      )}
+      {errores.length === 0 && avisos.length > 0 && (
         <div className="banner">
           {avisos.map((a) => <p key={a}>⚠️ {a}</p>)}
-          <p>Puedes guardar igualmente.</p>
+          <p>Puedes guardar igualmente y apuntar el resto más tarde.</p>
         </div>
       )}
       <div className="acciones">
         {paso === 0
           ? <button className="btn btn-suave" onClick={() => alTerminar(false)} title="Que cada uno apunte lo suyo">Sig. ›</button>
           : <button className="btn btn-suave" onClick={() => setPaso(paso - 1)}>‹ Atrás</button>}
-        <button className="btn btn-primario" disabled={guardando} onClick={confirmar}>Confirmar</button>
+        <button className="btn btn-primario" disabled={guardando || errores.length > 0} onClick={confirmar}>Confirmar</button>
       </div>
     </section>
   );

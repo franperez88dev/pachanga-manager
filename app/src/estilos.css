@@ -290,6 +290,32 @@ h1, h2, h3, h4 { margin: 0; }
   font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Tarjetas resumidas de partidos (Inicio y lista de Partidos) ---------- */
+.tarjeta-partido { display: flex; flex-direction: column; gap: 8px; padding: 13px 15px; text-decoration: none; }
+.tarjeta-partido:active, .tarjeta-jugado:active, .fila-top:active { transform: scale(0.99); }
+.tarjeta-partido-fila { display: flex; align-items: center; gap: 10px; }
+.tarjeta-partido-texto { flex: 1; min-width: 0; }
+.tarjeta-partido-pie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.flecha { font-size: 26px; line-height: 1; color: var(--suave); flex: 0 0 auto; }
+.aviso-votar {
+  font-size: 13px; font-weight: 600; padding: 8px 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--oro) 15%, transparent); color: var(--texto);
+}
+.tarjeta-jugado { display: flex; align-items: center; gap: 10px; padding: 10px 15px; text-decoration: none; }
+.tarjeta-jugado-fecha { flex: 1; font-size: 14px; font-weight: 600; min-width: 0; }
+.tarjeta-jugado-marcador { display: flex; align-items: center; gap: 8px; }
+.tarjeta-jugado-marcador img { width: 28px; height: 28px; object-fit: contain; }
+.tarjeta-jugado-marcador b {
+  font: 700 22px "Barlow Condensed", sans-serif; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center;
+}
+.lista-top { display: flex; flex-direction: column; padding: 4px 0; }
+.fila-top { display: flex; align-items: center; gap: 10px; padding: 9px 15px; text-decoration: none; }
+.fila-top:not(:last-child) { border-bottom: 1px solid var(--borde); }
+.fila-top .medalla { font-size: 22px; width: 28px; text-align: center; }
+.fila-top .nombre { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goles-top { font: 700 18px "Barlow Condensed", sans-serif; font-variant-numeric: tabular-nums; }
+.enlace-pequeno { font-size: 13px; font-weight: 600; color: var(--verde); text-decoration: none; }
+
 /* ---------- Partido ---------- */
 .cabecera-partido { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 15px; }
 .fecha-partido { font-weight: 700; font-size: 16px; }
@@ -476,4 +502,12 @@ h1, h2, h3, h4 { margin: 0; }
 .zona-peligro {
   margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--borde);
   display: flex; flex-direction: column; gap: 8px;
+}
+
+/* Aviso que impide continuar (p. ej. más goles que el resultado) */
+.banner-error {
+  background: var(--peligro-suave);
+  border-color: color-mix(in srgb, var(--peligro) 45%, transparent);
+  color: var(--peligro);
+  font-weight: 600;
 }

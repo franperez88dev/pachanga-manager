@@ -1,10 +1,10 @@
 // Lista de partidos y, para el admin, el formulario para crear uno nuevo
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { api } from "../api";
 import { useAvisar } from "../avisos";
 import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
-import { fechaPartido } from "../formato";
+import { TarjetaJugado, TarjetaProximo } from "../componentes/partido/TarjetasPartido";
 import { useCarga } from "../hooks/useCarga";
 import { useSesion } from "../sesion";
 
@@ -63,17 +63,9 @@ export default function Partidos() {
       {cargando && !datos ? <Cargando /> : error ? <MensajeError mensaje={error} reintentar={recargar} /> :
         datos.partidos.length === 0 ? <Vacio>Todavía no hay partidos.</Vacio> : (
           <div className="lista">
-            {datos.partidos.map((p) => (
-              <Link key={p.id} to={`/partidos/${p.id}`} className="fila-lista">
-                <div className="fila-lista-texto">
-                  <div className="fuerte">{fechaPartido(p.fecha, true)}</div>
-                  <div className="nota">📍 {p.lugar}{p.convocado ? " · Convocado ✔" : ""}</div>
-                </div>
-                {p.resultado
-                  ? <span className="marcador-mini">{p.resultado.blanco}–{p.resultado.negro}</span>
-                  : <span className="chip-estado abierto">Próximo</span>}
-              </Link>
-            ))}
+            {datos.partidos.map((p) => (p.estado === "abierto"
+              ? <TarjetaProximo key={p.id} partido={p} />
+              : <TarjetaJugado key={p.id} partido={p} />))}
           </div>
         )}
     </div>

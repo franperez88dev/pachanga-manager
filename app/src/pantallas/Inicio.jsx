@@ -1,41 +1,59 @@
+// Inicio: solo un resumen. Los equipos, la votación y el orden en portería están en la ficha
+// de cada partido (se abre pulsando su tarjeta).
 import { Link } from "react-router";
+import Avatar from "../componentes/avatar/Avatar";
 import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
-import VistaPartido, { Resultado } from "../componentes/partido/VistaPartido";
-import { fechaPartido } from "../formato";
+import { TarjetaJugado, TarjetaProximo } from "../componentes/partido/TarjetasPartido";
+import { plural } from "../formato";
 import { useCarga } from "../hooks/useCarga";
 import { useSesion } from "../sesion";
 
-function UltimoPartido() {
-  const lista = useCarga("/api/partidos");
-  const ultimo = lista.datos?.partidos.find((p) => p.estado === "cerrado");
-  if (!ultimo) return null;
+const MEDALLAS = ["🥇", "🥈", "🥉"];
+const ULTIMOS = 3;
+
+function TopGoleadores() {
+  const { datos, cargando, error, recargar } = useCarga("/api/clasificacion?orden=goles");
+  if (cargando && !datos) return <Cargando />;
+  if (error) return <MensajeError mensaje={error} reintentar={recargar} />;
+  const top = datos.clasificacion.filter((f) => f.goles > 0).slice(0, 3);
+  if (top.length === 0) return <Vacio>Todavía no hay goles confirmados.</Vacio>;
   return (
-    <section>
-      <h2 className="titulo-seccion">Último partido · {fechaPartido(ultimo.fecha, true)}</h2>
-      <Link to={`/partidos/${ultimo.id}`} className="enlace-tarjeta">
-        <Resultado partido={ultimo} />
-      </Link>
-    </section>
+    <div className="tarjeta lista-top">
+      {top.map((f, i) => (
+        <Link key={f.id} to={`/jugador/${f.id}`} className="fila-top">
+          <span className="medalla" aria-label={`Puesto ${i + 1}`}>{MEDALLAS[i]}</span>
+          <Avatar avatar={f.avatar} tam={36} />
+          <span className="nombre">{f.mote}</span>
+          <span className="goles-top">{plural(f.goles, "gol", "goles")}</span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
 export default function Inicio() {
   const { usuario } = useSesion();
-  const proximo = useCarga("/api/partidos/proximo");
+  const { datos, cargando, error, recargar } = useCarga("/api/partidos");
 
-  let contenido;
-  if (proximo.cargando && !proximo.datos) contenido = <Cargando />;
-  else if (proximo.error) contenido = <MensajeError mensaje={proximo.error} reintentar={proximo.recargar} />;
-  else if (!proximo.datos.partido) {
-    contenido = (
+  let proximos = null;
+  let jugados = null;
+  if (cargando && !datos) proximos = <Cargando />;
+  else if (error) proximos = <MensajeError mensaje={error} reintentar={recargar} />;
+  else {
+    // La API los da del más nuevo al más antiguo: los próximos se ordenan del más cercano al más lejano
+    const abiertos = datos.partidos.filter((p) => p.estado === "abierto").reverse();
+    const cerrados = datos.partidos.filter((p) => p.estado === "cerrado").slice(0, ULTIMOS);
+    proximos = abiertos.length ? (
+      <div className="lista">{abiertos.map((p) => <TarjetaProximo key={p.id} partido={p} />)}</div>
+    ) : (
       <Vacio>
         <p>No hay ningún partido programado.</p>
         {usuario.es_admin && <Link to="/partidos" className="btn btn-primario">+ Crear partido</Link>}
       </Vacio>
     );
-  } else {
-    // Si el admin lo cierra desde aquí, se sigue viendo (para apuntar los goles) hasta cambiar de pantalla
-    contenido = <VistaPartido partido={proximo.datos.partido} alCambiar={(p) => proximo.poner({ partido: p })} />;
+    jugados = cerrados.length ? (
+      <div className="lista">{cerrados.map((p) => <TarjetaJugado key={p.id} partido={p} />)}</div>
+    ) : <Vacio>Todavía no se ha jugado ningún partido.</Vacio>;
   }
 
   return (
@@ -43,9 +61,21 @@ export default function Inicio() {
       <h1 className="saludo">¡Hola, {usuario.mote}!</h1>
       <section>
         <h2 className="titulo-seccion">Próximo partido</h2>
-        {contenido}
+        {proximos}
       </section>
-      <UltimoPartido />
+      {jugados && (
+        <section>
+          <h2 className="titulo-seccion">Últimos partidos</h2>
+          {jugados}
+        </section>
+      )}
+      <section>
+        <div className="fila-titulo">
+          <h2 className="titulo-seccion">Máximos goleadores</h2>
+          <Link to="/clasificacion" className="enlace-pequeno">Ver tabla ›</Link>
+        </div>
+        <TopGoleadores />
+      </section>
     </div>
   );
 }
