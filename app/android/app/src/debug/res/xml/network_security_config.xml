@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SOLO EN LA VERSIÓN DE PRUEBAS (debug): permite HTTP sin cifrar hacia el propio móvil,
+     que con "adb reverse" llega al backend de tu PC por el cable USB.
+     La versión final (release) no incluye este archivo: allí solo se permite HTTPS. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

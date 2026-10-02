@@ -1,0 +1,8 @@
+{
+  "appId": "com.pachanga.manager",
+  "appName": "Pachanga Manager",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}

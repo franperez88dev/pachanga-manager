@@ -1,0 +1,95 @@
+apply plugin: 'com.android.application'
+
+// ---------------------------------------------------------------------------------------
+// VERSIÓN: un solo sitio, el campo "version" de app/package.json (p. ej. "1.2.3").
+//   versionName = "1.2.3"  (lo que ve la gente)
+//   versionCode = 10203    (entero que Android y Google Play exigen que SUBA en cada versión)
+// Para subirla: en la carpeta app, "npm run version:subir" (ver README).
+// ---------------------------------------------------------------------------------------
+def paquete = new groovy.json.JsonSlurper().parse(file('../../package.json'))
+def (vMayor, vMenor, vParche) = paquete.version.tokenize('.').collect { it.toInteger() }
+
+// ---------------------------------------------------------------------------------------
+// FIRMA: todos los APK/AAB se firman con NUESTRO keystore, para que una versión nueva se
+// instale encima de la anterior. Los datos salen de android/keystore.properties (no va a git)
+// o, si no existe (p. ej. en GitHub Actions), de variables de entorno PACHANGA_KEYSTORE_*.
+// ---------------------------------------------------------------------------------------
+def propiedadesFirma = new Properties()
+def archivoFirma = rootProject.file('keystore.properties')
+if (archivoFirma.exists()) {
+    archivoFirma.withInputStream { propiedadesFirma.load(it) }
+}
+def datoFirma = { String clave, String variable -> propiedadesFirma.getProperty(clave) ?: System.getenv(variable) }
+def hayFirma = datoFirma('storeFile', 'PACHANGA_KEYSTORE_FILE') != null
+
+android {
+    namespace = "com.pachanga.manager"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.pachanga.manager"   // definitivo: no se puede cambiar una vez en Google Play
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode vMayor * 10000 + vMenor * 100 + vParche
+        versionName paquete.version
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        pachanga {
+            if (hayFirma) {
+                storeFile file(datoFirma('storeFile', 'PACHANGA_KEYSTORE_FILE'))
+                storePassword datoFirma('storePassword', 'PACHANGA_KEYSTORE_PASSWORD')
+                keyAlias datoFirma('keyAlias', 'PACHANGA_KEY_ALIAS')
+                keyPassword datoFirma('keyPassword', 'PACHANGA_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            // Versión de pruebas: también con nuestra firma (si está disponible)
+            if (hayFirma) signingConfig signingConfigs.pachanga
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hayFirma) {
+                signingConfig signingConfigs.pachanga
+            } else {
+                logger.warn("AVISO: no hay keystore.properties ni variables PACHANGA_KEYSTORE_*: la versión release saldrá SIN FIRMAR.")
+            }
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
