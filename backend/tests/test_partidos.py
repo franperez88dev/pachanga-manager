@@ -1,4 +1,5 @@
-"""Flujo completo: partido, convocatoria, equipos, cierre con resultado, goles y clasificación."""
+"""Flujo completo: partido, equipos, votación, cierre con resultado, goles y clasificación.
+(Apuntarse, reservas y multas: en test_huecos.py)"""
 
 
 def crear_partido(client, admin, **datos):
@@ -12,27 +13,14 @@ def test_crear_partido_valida_datos(client, admin):
     assert crear_partido(client, admin, lugar="   ").status_code == 400
 
 
-def test_convocatoria_exige_exactamente_10_distintos_y_aprobados(client, admin, plantilla, nuevo):
-    pid = crear_partido(client, admin).get_json()["partido"]["id"]
-    ids = [j.id for j in plantilla]
-
-    def convocar(lista):
-        return client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": lista}, headers=admin.headers)
-
-    assert convocar(ids[:9]).status_code == 400
-    assert convocar(ids[:11]).status_code == 400
-    assert convocar(ids[:9] + [ids[0]]).status_code == 400
-    pendiente = nuevo("Pendiente", estado="pendiente")
-    assert convocar(ids[:9] + [pendiente.id]).status_code == 400
-    assert convocar(ids[:9] + [99999]).status_code == 400
-    r = convocar(ids[:10])
-    assert r.status_code == 200
-    assert r.get_json()["partido"]["num_convocados"] == 10
-
-
-def test_no_se_hacen_equipos_sin_10_convocados(client, admin):
-    pid = crear_partido(client, admin).get_json()["partido"]["id"]
-    assert client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers).status_code == 409
+def test_no_se_hacen_equipos_sin_10_apuntados(client, admin, plantilla, partido_abierto, apuntar):
+    url = f"/api/partidos/{partido_abierto}/equipos"
+    assert client.post(url, json={}, headers=admin.headers).status_code == 409
+    apuntar(partido_abierto, plantilla[:9])
+    r = client.post(url, json={}, headers=admin.headers)
+    assert r.status_code == 409 and "hay 9" in r.get_json()["error"]
+    apuntar(partido_abierto, plantilla[9:10])
+    assert client.post(url, json={}, headers=admin.headers).status_code == 200
 
 
 def test_equipos_blanco_y_negro_con_nombres_y_fuerza(client, admin, plantilla, partido_con_equipos):
@@ -118,7 +106,7 @@ def test_maximo_3_repartos_y_votacion_nueva_en_cada_uno(client, admin, plantilla
     assert rebarajar(client, admin, pid).status_code == 409
 
 
-def test_solo_votan_convocados_y_con_equipos(client, admin, plantilla, partido_con_equipos):
+def test_solo_votan_los_que_juegan_y_con_equipos(client, admin, plantilla, partido_con_equipos, apuntar):
     r = client.post(f"/api/partidos/{partido_con_equipos}/voto", json={"cambiar": True},
                    headers=plantilla[11].headers)
     assert r.status_code == 403
@@ -126,8 +114,7 @@ def test_solo_votan_convocados_y_con_equipos(client, admin, plantilla, partido_c
                    headers=plantilla[0].headers)
     assert r.status_code == 400
     sin_equipos = crear_partido(client, admin).get_json()["partido"]["id"]
-    client.put(f"/api/partidos/{sin_equipos}/convocatoria", json={"jugadores": [j.id for j in plantilla[:10]]},
-               headers=admin.headers)
+    apuntar(sin_equipos, plantilla[:10])
     assert client.post(f"/api/partidos/{sin_equipos}/voto", json={"cambiar": True},
                       headers=plantilla[0].headers).status_code == 409
 
@@ -140,7 +127,7 @@ def test_la_lista_avisa_de_votacion_pendiente(client, admin, plantilla, partido_
     assert debo_votar(plantilla[0]) is True
     votar(client, plantilla[:1], partido_con_equipos)
     assert debo_votar(plantilla[0]) is False
-    assert debo_votar(plantilla[11]) is False  # no convocado
+    assert debo_votar(plantilla[11]) is False  # no juega
 
 
 def test_cada_uno_ve_su_voto_pero_no_el_de_los_demas(client, plantilla, partido_con_equipos):
@@ -175,22 +162,15 @@ def test_asistencias_son_opcionales(client, admin, plantilla, partido_cerrado):
     assert r.status_code == 200
 
 
-def test_volver_a_elegir_con_los_mismos_10_no_cambia_los_equipos(client, admin, plantilla, partido_con_equipos):
-    """Así "Volver a elegir" no sirve para saltarse la votación."""
-    pid = partido_con_equipos
-    antes = client.get(f"/api/partidos/{pid}", headers=admin.headers).get_json()["partido"]["equipos"]
-    r = client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": [j.id for j in reversed(plantilla[:10])]},
-                   headers=admin.headers)
-    assert r.get_json()["partido"]["equipos"] == antes
-
-
-def test_cambiar_un_convocado_empieza_de_cero(client, admin, plantilla, partido_con_equipos):
+def test_cambiar_a_uno_de_los_que_juegan_empieza_de_cero(client, admin, plantilla, partido_con_equipos):
+    """El admin quita a uno de los 10 y apunta a otro: equipos, votos y repartos vuelven a cero."""
     pid = partido_con_equipos
     votar(client, plantilla[:7], pid)
-    nuevos = [j.id for j in plantilla[:9]] + [plantilla[11].id]
-    p = client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": nuevos},
-                   headers=admin.headers).get_json()["partido"]
-    assert p["equipos"] is None and p["votacion"] is None and p["num_convocados"] == 10
+    p = client.delete(f"/api/partidos/{pid}/jugadores/{plantilla[9].id}", json={},
+                      headers=admin.headers).get_json()["partido"]
+    assert p["equipos"] is None and p["votacion"] is None and p["num_apuntados"] == 9
+    assert client.post(f"/api/partidos/{pid}/jugadores", json={"user_id": plantilla[11].id},
+                       headers=admin.headers).status_code == 201
     r = client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers)
     v = r.get_json()["partido"]["votacion"]
     assert (v["repartos_hechos"], v["votos_si"]) == (1, 0)
@@ -213,11 +193,17 @@ def test_corregir_resultado(client, admin, partido_cerrado):
     assert r.get_json()["partido"]["resultado"] == {"blanco": 5, "negro": 2}
 
 
-def test_partido_cerrado_no_se_modifica(client, admin, partido_cerrado):
+def test_partido_cerrado_no_se_modifica(client, admin, plantilla, partido_cerrado):
     pid = partido_cerrado
+    # Ni apuntarse, ni borrarse, ni que el admin toque la lista
+    assert client.post(f"/api/partidos/{pid}/hueco", headers=plantilla[11].headers).status_code == 409
+    assert client.delete(f"/api/partidos/{pid}/hueco", headers=plantilla[0].headers).status_code == 409
+    assert client.post(f"/api/partidos/{pid}/jugadores", json={"user_id": plantilla[11].id},
+                       headers=admin.headers).status_code == 409
+    assert client.delete(f"/api/partidos/{pid}/jugadores/{plantilla[0].id}", json={},
+                         headers=admin.headers).status_code == 409
     assert client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers).status_code == 409
-    assert client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": []},
-                      headers=admin.headers).status_code == 409
+    assert client.patch(f"/api/partidos/{pid}", json={"lugar": "Otro"}, headers=admin.headers).status_code == 409
     assert client.delete(f"/api/partidos/{pid}", headers=admin.headers).status_code == 409
 
 
@@ -285,10 +271,10 @@ def test_planilla_no_admite_mas_goles_que_el_resultado(client, admin, partido_ce
 
 def test_planilla_valida_jugadores_y_numeros(client, admin, plantilla, partido_cerrado):
     url = f"/api/partidos/{partido_cerrado}/estadisticas"
-    no_convocado = plantilla[11].id
+    no_juega = plantilla[11].id
     blanco = equipos_de(client, admin, partido_cerrado)[0][0]
     malas = [
-        [{"id": no_convocado, "goles": 1, "gpp": 0, "asistencias": 0}],
+        [{"id": no_juega, "goles": 1, "gpp": 0, "asistencias": 0}],
         [{"id": blanco, "goles": 1, "gpp": 0, "asistencias": 0}] * 2,
         [{"id": blanco, "goles": -1, "gpp": 0, "asistencias": 0}],
         [{"id": blanco, "gpp": 0}],  # faltan los goles
@@ -351,7 +337,7 @@ def test_flujo_reportes_de_jugadores_y_clasificacion(client, admin, plantilla, p
     assert (fila["Feragi"]["goles"], fila["Feragi"]["asistencias"], fila["Feragi"]["partidos"]) == (3, 1, 1)
     assert fila["El Tanke"]["goles"] == 0 and fila["El Tanke"]["partidos"] == 1  # descartado no cuenta
     assert fila["Rulo"]["gpp"] == 1
-    assert fila["Guaje"]["partidos"] == 0  # no convocado
+    assert fila["Guaje"]["partidos"] == 0  # no jugó
     assert tabla("goles")[0]["mote"] == "Feragi"
     assert tabla("asistencias")[0]["mote"] == "Chuti"
     assert tabla("gpp")[0]["mote"] == "Rulo"
@@ -401,8 +387,6 @@ def test_proximo_partido(client, admin, plantilla):
 def test_health_no_necesita_sesion(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.get_json() == {"estado": "ok"}
-
-
 
 
 # ------------------------------------------------------------ nunca más goles que el resultado

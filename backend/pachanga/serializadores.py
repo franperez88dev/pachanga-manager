@@ -6,10 +6,11 @@ Los tests de privacidad lo comprueban.
 """
 from flask import current_app
 
-from .models import EQUIPO_BLANCO, EQUIPO_NEGRO, VotoRebarajar
+from .models import EQUIPO_BLANCO, EQUIPO_NEGRO, PLAZAS, VotoRebarajar
+from .servicios import lleva_multa
 
 NOMBRES_EQUIPO = {EQUIPO_BLANCO: "Nevados C.F.", EQUIPO_NEGRO: "Sombras F.C."}
-# Formación 1-2-2 de fútbol sala, por el número de posición guardado en la convocatoria
+# Formación 1-2-2 de fútbol sala, por el número de posición guardado con cada jugador
 POSICIONES = ["portero", "defensa", "defensa", "delantero", "delantero"]
 
 
@@ -33,21 +34,35 @@ def fecha_partido(fecha):
 
 
 def partido_resumen(p, usuario):
-    mio = next((mp for mp in p.jugadores if mp.user_id == usuario.id), None)
+    juegan = p.titulares
+    lista = juegan + p.reservas  # por orden: primero los que juegan, luego los reservas
+    mio = next((mp for mp in lista if mp.user_id == usuario.id), None)
+    juego = mio is not None and mio in juegan
     return {
         "id": p.id,
         "fecha": fecha_partido(p.fecha),
         "lugar": p.lugar,
+        "info_pago": p.info_pago,
         "estado": p.estado,
         "equipos_generados": p.equipos_generados,
         # null mientras el partido está abierto
         "resultado": ({"blanco": p.goles_blanco, "negro": p.goles_negro}
                       if p.goles_blanco is not None else None),
-        "num_convocados": len(p.jugadores),
-        "convocado": mio is not None,
+        "plazas": PLAZAS,
+        "num_apuntados": len(lista),
+        "num_reservas": len(lista) - len(juegan),
+        # Mi situación en este partido
+        "apuntado": mio is not None,
+        "mi_puesto": lista.index(mio) + 1 if mio else None,  # 1, 2, 3... (del 11 en adelante, reserva)
+        "soy_reserva": mio is not None and not juego,
+        "convocado": juego,  # soy de los 10 que juegan
         "mi_equipo": mio.equipo if mio else None,
-        # Para avisar en Inicio: convocado, con votación abierta y sin haber votado aún
-        "debo_votar": mio is not None and votacion_pendiente(p, usuario),
+        # Con los equipos hechos (o el partido cerrado) los jugadores ya no pueden apuntarse ni borrarse
+        "lista_cerrada": p.equipos_generados or not p.abierto,
+        # ¿Borrarme ahora me costaría una multa? (soy titular y faltan menos de 24 horas)
+        "multa_si_libero": juego and p.abierto and not p.equipos_generados and lleva_multa(p),
+        # Para avisar en Inicio: juego, hay votación abierta y aún no he votado
+        "debo_votar": juego and votacion_pendiente(p, usuario),
     }
 
 
@@ -59,8 +74,13 @@ def votacion_pendiente(p, usuario):
 
 def partido_detalle(p, usuario):
     datos = partido_resumen(p, usuario)
-    convocados = sorted(p.jugadores, key=lambda mp: mp.usuario.mote.casefold())
-    datos["convocados"] = [{**usuario_publico(mp.usuario), "equipo": mp.equipo} for mp in convocados]
+    juegan = p.titulares
+    # La lista de apuntados, numerada como en el grupo de WhatsApp: 1-10 juegan, del 11 en adelante reservas
+    datos["apuntados"] = [
+        {**usuario_publico(mp.usuario), "puesto": puesto, "reserva": mp not in juegan, "equipo": mp.equipo}
+        for puesto, mp in enumerate(juegan + p.reservas, start=1)
+    ]
+    convocados = sorted(juegan, key=lambda mp: mp.usuario.mote.casefold())
     datos["equipos"] = None
     if p.equipos_generados:
         def equipo(color, fuerza):
@@ -115,4 +135,15 @@ def reporte(r):
         "asistencias": r.asistencias,
         "estado": r.estado,
         "fecha": r.fecha.isoformat(timespec="seconds") + "Z",
+    }
+
+
+def multa(m):
+    return {
+        "id": m.id,
+        "jugador": usuario_publico(m.usuario),
+        "partido": {"id": m.partido.id, "fecha": fecha_partido(m.partido.fecha), "lugar": m.partido.lugar},
+        "motivo": m.motivo,
+        "estado": m.estado,
+        "fecha": m.fecha.isoformat(timespec="seconds") + "Z",
     }

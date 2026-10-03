@@ -47,7 +47,7 @@ def peña_con_valoraciones(client, admin, plantilla, partido_con_equipos):
 def rutas_de_consulta(pid, uid):
     return ["/api/yo", "/api/jugadores", f"/api/jugadores/{uid}", "/api/clasificacion",
             "/api/partidos", "/api/partidos/proximo", f"/api/partidos/{pid}",
-            "/api/valoraciones/mias", "/api/reportes/mios"]
+            "/api/valoraciones/mias", "/api/reportes/mios", "/api/multas/mias"]
 
 
 def test_ninguna_consulta_de_jugador_devuelve_pines_ni_valoraciones(client, plantilla, peña_con_valoraciones):
@@ -59,7 +59,8 @@ def test_ninguna_consulta_de_jugador_devuelve_pines_ni_valoraciones(client, plan
 def test_ni_siquiera_el_admin_ve_pines_ni_valoraciones(client, admin, plantilla, peña_con_valoraciones):
     pid = peña_con_valoraciones
     rutas = rutas_de_consulta(pid, plantilla[1].id) + [
-        "/api/admin/altas", "/api/admin/usuarios", "/api/admin/reportes", f"/api/partidos/{pid}/estadisticas"]
+        "/api/admin/altas", "/api/admin/usuarios", "/api/admin/reportes", "/api/admin/multas",
+        f"/api/partidos/{pid}/estadisticas"]
     for ruta in rutas:
         assert_sin_datos_secretos(client.get(ruta, headers=admin.headers))
 

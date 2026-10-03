@@ -1,12 +1,12 @@
-"""Comandos de terminal: `flask create-admin` y, solo para probar en local, `flask datos-demo`
-y `flask demo-votar`."""
+"""Comandos de terminal: `flask create-admin` y, solo para probar en local, `flask datos-demo`,
+`flask demo-apuntar` y `flask demo-votar`."""
 import random
 
 import click
 
 from .errores import ErrorApi
 from .extensions import db
-from .models import ESTADO_APROBADO, ROL_ADMIN, Match, Rating, User, VotoRebarajar
+from .models import ESTADO_APROBADO, ROL_ADMIN, Match, MatchPlayer, Rating, User, VotoRebarajar
 from .seguridad import hash_pin
 from .servicios import crear_usuario
 
@@ -74,18 +74,37 @@ def registrar_comandos(app):
         for u in creados:
             click.echo(f"    {u.dorsal:>2}  {u.mote}")
 
+    @app.cli.command("demo-apuntar")
+    @click.argument("partido_id", type=int)
+    @click.option("--cuantos", default=10, show_default=True, help="Cuántos jugadores de prueba se apuntan")
+    def demo_apuntar(partido_id, cuantos):
+        """SOLO PRUEBAS: los jugadores de prueba reservan hueco en un partido."""
+        solo_en_local()
+        partido = db.session.get(Match, partido_id)
+        if partido is None or not partido.abierto or partido.equipos_generados:
+            raise click.ClickException("Ese partido no existe, está cerrado o ya tiene los equipos hechos.")
+        ya = {mp.user_id for mp in partido.jugadores}
+        libres = [u for u in User.query.filter(User.mote.in_(MOTES_DEMO)).order_by(User.dorsal)
+                  if u.id not in ya]
+        for u in libres[:cuantos]:
+            partido.jugadores.append(MatchPlayer(user_id=u.id))
+            db.session.flush()  # uno a uno, para que queden en este orden
+        db.session.commit()
+        click.echo(f"Apuntados: {', '.join(u.mote for u in libres[:cuantos]) or 'nadie (ya estaban todos)'}. "
+                   f"Hay {len(partido.jugadores)} en la lista.")
+
     @app.cli.command("demo-votar")
     @click.argument("partido_id", type=int)
     @click.option("--si", default=5, show_default=True, help="Cuántos votan que sí")
     @click.option("--no", "no_", default=0, show_default=True, help="Cuántos votan que no")
     def demo_votar(partido_id, si, no_):
-        """SOLO PRUEBAS: hace votar a los jugadores de prueba convocados en un partido."""
+        """SOLO PRUEBAS: hace votar a los jugadores de prueba que juegan un partido."""
         solo_en_local()
         partido = db.session.get(Match, partido_id)
         if partido is None or not partido.equipos_generados:
             raise click.ClickException("Ese partido no existe o todavía no tiene equipos.")
         ya = {v.user_id for v in VotoRebarajar.query.filter_by(match_id=partido.id, ronda=partido.num_repartos)}
-        libres = [mp.usuario for mp in partido.jugadores
+        libres = [mp.usuario for mp in partido.titulares
                   if mp.usuario.mote in MOTES_DEMO and mp.user_id not in ya]
         if si + no_ > len(libres):
             raise click.ClickException(f"Solo quedan {len(libres)} jugadores de prueba sin votar.")

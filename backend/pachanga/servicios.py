@@ -1,6 +1,9 @@
 """Operaciones con la base de datos que usan varias rutas (y el CLI)."""
 import re
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
+from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -10,7 +13,7 @@ from .errores import ErrorApi
 from .extensions import db
 from .models import (
     EQUIPO_BLANCO, EQUIPO_NEGRO, ESTADO_APROBADO, PARTIDO_CERRADO, REPORTE_CONFIRMADO,
-    ROL_ADMIN, Match, MatchPlayer, Rating, StatReport, User, VotoRebarajar,
+    ROL_ADMIN, Match, MatchPlayer, Multa, Rating, StatReport, User, VotoRebarajar,
 )
 from .seguridad import hash_pin, normalizar_mote, nuevo_pin
 
@@ -101,7 +104,7 @@ def estadisticas(ids=None):
     partidos = (
         db.session.query(MatchPlayer.user_id, func.count(MatchPlayer.match_id))
         .join(Match, Match.id == MatchPlayer.match_id)
-        .filter(Match.estado == PARTIDO_CERRADO)
+        .filter(Match.estado == PARTIDO_CERRADO, MatchPlayer.equipo.isnot(None))  # los reservas no jugaron
         .group_by(MatchPlayer.user_id)
     )
     if ids is not None:
@@ -199,9 +202,9 @@ def fuerzas_de(ids):
 
 
 def borrar_usuario(usuario):
-    """Borra la cuenta y todos sus datos: valoraciones dadas y recibidas, reportes
-    y convocatorias. Si estaba convocado en un partido abierto con equipos hechos,
-    esos equipos se deshacen porque ya no son válidos."""
+    """Borra la cuenta y todos sus datos: valoraciones dadas y recibidas, goles, multas, votos
+    y huecos reservados. Si jugaba en un partido abierto con los equipos hechos, esos equipos
+    se deshacen porque ya no son válidos."""
     if usuario.es_admin and usuario.aprobado and numero_admins() <= 1:
         raise ErrorApi(409, "Eres el único admin. Nombra a otro admin antes de borrar tu cuenta")
 
@@ -210,17 +213,41 @@ def borrar_usuario(usuario):
     )
     StatReport.query.filter_by(user_id=usuario.id).delete(synchronize_session=False)
     VotoRebarajar.query.filter_by(user_id=usuario.id).delete(synchronize_session=False)
-    for convocatoria in MatchPlayer.query.filter_by(user_id=usuario.id).all():
-        partido = convocatoria.partido
-        db.session.delete(convocatoria)
-        if partido.abierto and partido.equipos_generados:
+    Multa.query.filter_by(user_id=usuario.id).delete(synchronize_session=False)
+    for plaza in MatchPlayer.query.filter_by(user_id=usuario.id).all():
+        partido = plaza.partido
+        jugaba = plaza.equipo is not None
+        partido.jugadores.remove(plaza)
+        if partido.abierto and partido.equipos_generados and jugaba:
             deshacer_equipos(partido)
     db.session.delete(usuario)
     db.session.commit()
 
 
+# ------------------------------------------------------------ horarios y multas
+def ahora_local():
+    """La hora actual en España, sin zona: en el mismo formato en que se guarda la fecha de los
+    partidos. (El servidor de PythonAnywhere va en hora UTC, una o dos horas menos.)"""
+    return datetime.now(ZoneInfo(current_app.config["ZONA_HORARIA"])).replace(tzinfo=None)
+
+
+def horas_para_empezar(partido):
+    return (partido.fecha - ahora_local()).total_seconds() / 3600
+
+
+def lleva_multa(partido):
+    """¿Borrarse AHORA de este partido lleva multa? Sí, si faltan menos de 24 horas."""
+    return horas_para_empezar(partido) < current_app.config["HORAS_SIN_MULTA"]
+
+
+def poner_multa(partido, usuario_id, motivo):
+    multa = Multa(match_id=partido.id, user_id=usuario_id, motivo=motivo)
+    db.session.add(multa)
+    return multa
+
+
 def deshacer_equipos(partido):
-    """Se usa cuando cambia la convocatoria: equipos, votos y cuenta de repartos empiezan de cero."""
+    """Se usa cuando cambia quién juega: equipos, votos y cuenta de repartos empiezan de cero."""
     for mp in partido.jugadores:
         mp.equipo = None
         mp.posicion = None

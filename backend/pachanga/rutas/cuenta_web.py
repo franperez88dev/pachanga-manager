@@ -26,7 +26,7 @@ PLANTILLA = """<!doctype html>
   <p class="aviso ok">Tu cuenta y todos tus datos se han borrado.</p>
 {% else %}
   <p>Se borrarán <b>de forma definitiva</b> tu cuenta y todos tus datos: mote, nombre real,
-  dorsal, PIN, las valoraciones que diste y recibiste, tus goles, asistencias y convocatorias.</p>
+  dorsal, PIN, las valoraciones que diste y recibiste, tus goles, tus multas y tus huecos en los partidos.</p>
   <p>También puedes hacerlo desde la app, en <b>Perfil → Borrar mi cuenta</b>.</p>
   {% if error %}<p class="aviso error">{{ error }}</p>{% endif %}
   <form method="post">

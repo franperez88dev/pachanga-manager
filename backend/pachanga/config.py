@@ -56,10 +56,16 @@ def cargar_config():
         "LOGIN_BLOQUEO_MINUTOS": _entero("LOGIN_BLOQUEO_MINUTOS", 15),
         "REGISTRO_MAX_POR_IP_HORA": _entero("REGISTRO_MAX_POR_IP_HORA", 5),
 
+        # --- Huecos y multas ---
+        # Zona horaria en la que el admin escribe la fecha de los partidos
+        "ZONA_HORARIA": os.environ.get("ZONA_HORARIA", "Europe/Madrid"),
+        # Liberar el hueco con menos de estas horas para el partido lleva multa
+        "HORAS_SIN_MULTA": _entero("HORAS_SIN_MULTA", 24),
+
         # --- Equipos (ver equipos.py) ---
         "TOLERANCIA_REBARAJAR": float(os.environ.get("TOLERANCIA_REBARAJAR", "0.5")),
-        # Votos "sí" (de los 10 convocados) para poder rebarajar: con 6 ya son mayoría frente a 4
+        # Votos "sí" (de los 10 que juegan) para poder rebarajar: con 6 ya son mayoría frente a 4
         "VOTOS_PARA_REBARAJAR": _entero("VOTOS_PARA_REBARAJAR", 6),
-        # Repartos máximos por convocatoria: el inicial + 2 cambios
+        # Repartos máximos por partido: el inicial + 2 cambios
         "MAX_REPARTOS": _entero("MAX_REPARTOS", 3),
     }

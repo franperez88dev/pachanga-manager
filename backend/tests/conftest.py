@@ -62,15 +62,34 @@ def plantilla(nuevo):
     return [nuevo(m) for m in motes]
 
 
+# Una fecha lejana: así en los tests normales nunca "faltan menos de 24 horas" (no hay multas)
+FECHA_LEJANA = "2040-06-02T19:00"
+
+
 @pytest.fixture
-def partido_con_equipos(client, admin, plantilla):
-    """Partido abierto con 10 convocados y equipos hechos. Devuelve su id."""
-    r = client.post("/api/partidos", json={"fecha": "2026-10-04T19:00", "lugar": "Polideportivo"},
+def apuntar(client):
+    """apuntar(pid, jugadores): cada jugador reserva su hueco, en ese orden."""
+    def _apuntar(pid, jugadores):
+        for j in jugadores:
+            r = client.post(f"/api/partidos/{pid}/hueco", headers=j.headers)
+            assert r.status_code == 201, r.get_json()
+        return r.get_json()["partido"]
+    return _apuntar
+
+
+@pytest.fixture
+def partido_abierto(client, admin):
+    """Partido recién creado, sin nadie apuntado. Devuelve su id."""
+    r = client.post("/api/partidos", json={"fecha": FECHA_LEJANA, "lugar": "Polideportivo"},
                     headers=admin.headers)
-    pid = r.get_json()["partido"]["id"]
-    ids = [j.id for j in plantilla[:10]]
-    assert client.put(f"/api/partidos/{pid}/convocatoria", json={"jugadores": ids},
-                      headers=admin.headers).status_code == 200
+    return r.get_json()["partido"]["id"]
+
+
+@pytest.fixture
+def partido_con_equipos(client, admin, plantilla, partido_abierto, apuntar):
+    """Partido abierto con 10 apuntados (los 10 primeros de la plantilla) y equipos hechos."""
+    pid = partido_abierto
+    apuntar(pid, plantilla[:10])
     assert client.post(f"/api/partidos/{pid}/equipos", json={}, headers=admin.headers).status_code == 200
     return pid
 

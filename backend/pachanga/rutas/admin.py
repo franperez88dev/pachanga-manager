@@ -1,13 +1,13 @@
-"""Panel de admin: altas, admins, confirmar goles y PIN nuevo para quien lo olvide."""
+"""Panel de admin: altas, admins, confirmar goles, multas y PIN nuevo para quien lo olvide."""
 from flask import Blueprint, jsonify, request
 
 from ..errores import ErrorApi
 from ..extensions import db
 from ..models import (
-    ESTADO_APROBADO, ESTADO_PENDIENTE, REPORTE_CONFIRMADO,
-    REPORTE_DESCARTADO, REPORTE_PENDIENTE, ROL_ADMIN, ROL_JUGADOR, StatReport, User,
+    ESTADO_APROBADO, ESTADO_PENDIENTE, MULTA_PAGADA, MULTA_PENDIENTE, MULTA_PERDONADA, REPORTE_CONFIRMADO,
+    REPORTE_DESCARTADO, REPORTE_PENDIENTE, ROL_ADMIN, ROL_JUGADOR, Multa, StatReport, User,
 )
-from ..serializadores import reporte, usuario_admin
+from ..serializadores import multa, reporte, usuario_admin
 from ..seguridad import requiere_admin
 from ..servicios import (
     con_reporte, exceso_marcador, numero_admins, regenerar_pin, stats_confirmadas_del_partido,
@@ -129,3 +129,28 @@ def confirmar(rid):
 @requiere_admin
 def descartar(rid):
     return _resolver_reporte(rid, REPORTE_DESCARTADO)
+
+
+# ------------------------------------------------------------ multas
+@bp.get("/multas")
+@requiere_admin
+def multas():
+    """Todas las multas, las más recientes primero (la app las separa en pendientes y resueltas)."""
+    ms = Multa.query.order_by(Multa.fecha.desc(), Multa.id.desc()).all()
+    return jsonify(multas=[multa(m) for m in ms])
+
+
+@bp.put("/multas/<int:mid>")
+@requiere_admin
+def resolver_multa(mid):
+    """{"estado": "pagada" | "perdonada" | "pendiente"}. Volver a "pendiente" sirve para
+    deshacer un toque equivocado."""
+    estado = cuerpo_json().get("estado")
+    if estado not in (MULTA_PAGADA, MULTA_PERDONADA, MULTA_PENDIENTE):
+        raise ErrorApi(400, "El estado debe ser 'pagada', 'perdonada' o 'pendiente'")
+    m = db.session.get(Multa, mid)
+    if m is None:
+        raise ErrorApi(404, "Multa no encontrada")
+    m.estado = estado
+    db.session.commit()
+    return jsonify(multa=multa(m))

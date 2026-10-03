@@ -13,6 +13,7 @@ from .cli import registrar_comandos
 from .config import cargar_config
 from .errores import registrar_manejadores
 from .extensions import db
+from .migraciones import actualizar_esquema
 from .rutas import registrar_blueprints
 
 
@@ -57,5 +58,6 @@ def create_app(config_extra=None):
     os.makedirs(app.instance_path, exist_ok=True)
     with app.app_context():
         db.create_all()  # crea las tablas que falten (no modifica las existentes)
+        actualizar_esquema()  # y añade las columnas nuevas a las tablas que ya existían
 
     return app

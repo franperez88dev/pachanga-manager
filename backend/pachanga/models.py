@@ -26,6 +26,12 @@ REPORTE_DESCARTADO = "descartado"
 REPORTE_ANULADO = "anulado"
 REPORTES_ACTIVOS = (REPORTE_PENDIENTE, REPORTE_CONFIRMADO)
 
+MULTA_PENDIENTE = "pendiente"
+MULTA_PAGADA = "pagada"
+MULTA_PERDONADA = "perdonada"
+
+PLAZAS = 10  # jugadores por partido (5 contra 5); los que se apunten después son reservas
+
 
 def ahora():
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -67,7 +73,7 @@ class Match(db.Model):
     lugar = db.Column(db.String(80), nullable=False)
     estado = db.Column(db.String(10), nullable=False, default=PARTIDO_ABIERTO)
     equipos_generados = db.Column(db.Boolean, nullable=False, default=False)
-    # Repartos hechos con esta convocatoria (el inicial + los rebarajados por votación)
+    # Repartos hechos con estos 10 jugadores (el inicial + los rebarajados por votación)
     num_repartos = db.Column(db.Integer, nullable=False, default=0)
     # Fuerza total de cada equipo en el momento de crearlos (lo único que se enseña)
     fuerza_blanco = db.Column(db.Float)
@@ -76,8 +82,28 @@ class Match(db.Model):
     goles_blanco = db.Column(db.Integer)
     goles_negro = db.Column(db.Integer)
     creado = db.Column(db.DateTime, nullable=False, default=ahora)
+    # Texto libre del admin sobre el precio, p. ej. "Pagar a Feragi (2,2 € anticipado | 2,5 € el día del partido)"
+    info_pago = db.Column(db.String(200))
 
+    # Todos los apuntados (titulares y reservas). Usa `titulares` y `reservas` para distinguirlos.
     jugadores = db.relationship("MatchPlayer", back_populates="partido", cascade="all, delete-orphan")
+
+    @property
+    def apuntados(self):
+        """Todos, por orden de llegada: el que antes reservó hueco, antes va."""
+        return sorted(self.jugadores, key=lambda mp: (mp.apuntado or datetime.max, mp.user_id))
+
+    @property
+    def titulares(self):
+        """Los que juegan. Con los equipos hechos, los que tienen equipo; antes, los 10 primeros."""
+        if self.equipos_generados:
+            return [mp for mp in self.apuntados if mp.equipo]
+        return self.apuntados[:PLAZAS]
+
+    @property
+    def reservas(self):
+        juegan = {mp.user_id for mp in self.titulares}
+        return [mp for mp in self.apuntados if mp.user_id not in juegan]
 
     @property
     def abierto(self):
@@ -89,7 +115,9 @@ class MatchPlayer(db.Model):
 
     match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), primary_key=True)
-    equipo = db.Column(db.String(10))  # blanco / negro / None si aún no hay equipos
+    # Cuándo reservó su hueco (UTC): decide el orden y, por tanto, quién juega y quién es reserva
+    apuntado = db.Column(db.DateTime, nullable=False, default=ahora)
+    equipo = db.Column(db.String(10))  # blanco / negro / None (sin equipos todavía, o reserva)
     # Sitio en el campo dentro de su equipo: 0 portero, 1-2 defensas, 3-4 delanteros
     posicion = db.Column(db.Integer)
     # Turno en la portería (cambian cada 5 minutos): 1 = el que empieza de portero
@@ -100,7 +128,7 @@ class MatchPlayer(db.Model):
 
 
 class VotoRebarajar(db.Model):
-    """"¿Deseas una nueva selección de equipo?". Un voto por convocado y por reparto,
+    """"¿Deseas una nueva selección de equipo?". Un voto por jugador y por reparto,
     sin poder cambiarlo (la `ronda` es el número de reparto al que se refiere el voto)."""
     __tablename__ = "votos_rebarajar"
 
@@ -109,6 +137,23 @@ class VotoRebarajar(db.Model):
     ronda = db.Column(db.Integer, primary_key=True)
     cambiar = db.Column(db.Boolean, nullable=False)
     fecha = db.Column(db.DateTime, nullable=False, default=ahora)
+
+
+class Multa(db.Model):
+    """Multa por liberar el hueco con menos de 24 horas (o porque el admin la pone al quitar a
+    alguien). No lleva importe: solo queda apuntada hasta que el admin la marca como pagada
+    o la perdona."""
+    __tablename__ = "multas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
+    match_id = db.Column(db.Integer, db.ForeignKey("partidos.id"), nullable=False, index=True)
+    motivo = db.Column(db.String(120), nullable=False)
+    estado = db.Column(db.String(10), nullable=False, default=MULTA_PENDIENTE)
+    fecha = db.Column(db.DateTime, nullable=False, default=ahora)
+
+    usuario = db.relationship("User")
+    partido = db.relationship("Match")
 
 
 class Rating(db.Model):
