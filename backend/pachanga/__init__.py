@@ -30,13 +30,14 @@ def create_app(config_extra=None):
         # Para que request.remote_addr sea la IP del móvil y no la del proxy del hosting
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": app.config["CORS_ORIGENES"]},
-                   r"/health": {"origins": app.config["CORS_ORIGENES"]}},
-        allow_headers=["Authorization", "Content-Type"],
-        max_age=600,
-    )
+    if app.config["CORS_ORIGENES"]:  # solo en desarrollo: en producción web y API comparten origen
+        CORS(
+            app,
+            resources={r"/api/*": {"origins": app.config["CORS_ORIGENES"]},
+                       r"/health": {"origins": app.config["CORS_ORIGENES"]}},
+            allow_headers=["Authorization", "Content-Type"],
+            max_age=600,
+        )
 
     db.init_app(app)
     registrar_manejadores(app)
@@ -48,6 +49,9 @@ def create_app(config_extra=None):
         # Las respuestas de la API son personales: que nadie (proxy, WebView) las guarde
         if request.path.startswith("/api/"):
             respuesta.headers["Cache-Control"] = "no-store"
+        # Que el navegador no "adivine" tipos de archivo ni mande la dirección a otras webs
+        respuesta.headers.setdefault("X-Content-Type-Options", "nosniff")
+        respuesta.headers.setdefault("Referrer-Policy", "same-origin")
         return respuesta
 
     os.makedirs(app.instance_path, exist_ok=True)

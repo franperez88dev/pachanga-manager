@@ -403,11 +403,6 @@ def test_health_no_necesita_sesion(client):
     assert r.status_code == 200 and r.get_json() == {"estado": "ok"}
 
 
-def test_cors_permite_la_app_capacitor(client):
-    r = client.get("/health", headers={"Origin": "https://localhost"})
-    assert r.headers.get("Access-Control-Allow-Origin") == "https://localhost"
-    r = client.get("/health", headers={"Origin": "https://malvado.example"})
-    assert "Access-Control-Allow-Origin" not in r.headers
 
 
 # ------------------------------------------------------------ nunca más goles que el resultado

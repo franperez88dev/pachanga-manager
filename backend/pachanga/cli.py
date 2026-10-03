@@ -37,8 +37,12 @@ def registrar_comandos(app):
             click.secho("  Aviso: ya había usuarios registrados, por eso no te ha tocado el 01.", fg="yellow")
 
     def solo_en_local():
-        if not app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-            raise click.ClickException("Este comando es solo para pruebas con la base de datos SQLite local.")
+        # En PythonAnywhere este interruptor NO se pone: así es imposible crear allí por error
+        # jugadores de prueba con un PIN que conoce todo el mundo.
+        if not app.config["PERMITIR_DATOS_DEMO"]:
+            raise click.ClickException(
+                "Este comando es solo para pruebas en tu PC. Para activarlo, pon PERMITIR_DATOS_DEMO=1 "
+                "en backend/.env (NUNCA en el servidor de verdad).")
 
     @app.cli.command("datos-demo")
     def datos_demo():

@@ -1,7 +1,7 @@
 /*
  * "Conectando con el servidor…": hasta que /health responde no enseñamos nada más.
- * En los hostings gratuitos el servidor "se duerme" y tarda hasta un minuto en
- * despertar; aquí reintentamos solos cada pocos segundos.
+ * Si el servidor no contesta (sin cobertura, servidor reiniciándose...), reintentamos
+ * solos cada pocos segundos.
  */
 import { useEffect, useState } from "react";
 import { peticion } from "../api";
@@ -28,7 +28,7 @@ export default function Conectando({ children }) {
 
   let mensaje = null;
   if (intentos >= 15) mensaje = "No conseguimos conectar. Comprueba que tienes internet. Seguimos intentándolo…";
-  else if (intentos >= 2) mensaje = "El servidor se está despertando. La primera vez puede tardar hasta un minuto.";
+  else if (intentos >= 2) mensaje = "Está tardando más de lo normal. Seguimos intentándolo…";
 
   return (
     <div className="pantalla-completa">

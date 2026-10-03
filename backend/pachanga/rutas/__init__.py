@@ -21,7 +21,7 @@ def entero(datos, campo, minimo, maximo):
 
 
 def registrar_blueprints(app):
-    from . import admin, auth, avatares, cuenta_web, jugadores, partidos, reportes, salud, valoraciones
+    from . import admin, auth, avatares, cuenta_web, jugadores, partidos, reportes, salud, valoraciones, web
 
-    for modulo in (salud, auth, cuenta_web, avatares, jugadores, valoraciones, partidos, reportes, admin):
+    for modulo in (salud, auth, cuenta_web, avatares, jugadores, valoraciones, partidos, reportes, admin, web):
         app.register_blueprint(modulo.bp)

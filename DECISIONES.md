@@ -2,6 +2,39 @@
 
 Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios acordados después).
 
+## ⭐ Cambio de rumbo (03/10/2026): aplicación web en PythonAnywhere, sin APK
+
+Sustituye a todo lo que `PROMPT.md` dice sobre APK, Capacitor, firma, hosting y Google Play
+(secciones 2.1 y 9, y fases 3, 4 y 6), y al apartado "Fase 3: APK" de más abajo.
+
+- **Solo web.** La app se abre en el navegador del móvil (Android o iPhone) y se puede "Añadir a
+  pantalla de inicio" (manifiesto web + iconos). **No hay APK ni publicación en Google Play.**
+- **Hosting: PythonAnywhere, plan gratuito**, en `https://TU_USUARIO.pythonanywhere.com`.
+  Verificado el 03/10/2026: 1 web, 512 MB, 100 s de CPU al día, sin MySQL en cuentas nuevas y
+  **hay que renovar la web cada mes** con un botón.
+- **Un solo servidor para todo.** Flask entrega la web compilada (`backend/pachanga/web`) y la API
+  (`/api/...`) desde el mismo dominio: la app llama con rutas relativas y **no hace falta CORS**
+  en producción (solo en el PC, para Vite).
+- **La web se compila en el PC** (`npm run build` en `app/`) y la carpeta compilada **se sube a git**.
+  En PythonAnywhere no hay Node: se publica con `git pull` + **Reload**.
+- **Base de datos: SQLite** también en producción (`backend/instance/pachanga.db`). En PythonAnywhere
+  el disco no se borra. Copia de seguridad = descargar ese archivo.
+- **Repositorio público** en GitHub (`franperez88dev/pachanga-manager`) para poder clonarlo en
+  PythonAnywhere sin credenciales. No contiene secretos.
+- **`CONFIAR_EN_PROXY=1` en el servidor** (obligatorio): PythonAnywhere va detrás de un proxy y, sin
+  esto, el bloqueo de login por IP afectaría a todos a la vez.
+- **Comandos de prueba** (`flask datos-demo`, `flask demo-votar`): ya no se protegen con "solo SQLite"
+  (producción también lo es) sino con `PERMITIR_DATOS_DEMO=1`, que solo se pone en el PC.
+- **Dependencias**: fuera `psycopg` (PostgreSQL) y `gunicorn`. PythonAnywhere usa su propio servidor
+  WSGI e importa `backend/wsgi.py` (variable `application`), que carga el `.env`.
+- **Seguridad de la web**: `index.html` sin caché y con Content-Security-Policy (solo recursos del
+  propio servidor); archivos de `/assets/` con caché larga; `X-Content-Type-Options: nosniff`.
+- **Versión** de `app/package.json` visible en Perfil, para comprobar qué versión ve cada móvil.
+- **Todo lo del APK se ha retirado del proyecto** (Capacitor, `app/android`, scripts, firma). Está
+  intacto en la etiqueta de git **`con-apk-android`** por si algún día se retoma. El keystore sigue
+  en `C:\Users\SuFran\.pachanga\` (fuera del repositorio).
+- Los pasos para publicar están en el README, apartado 6.
+
 ## Fase 0 (30/09/2026)
 - La decisión de hosting se aplaza a la Fase 4 (las condiciones de los planes gratuitos cambian a menudo).
 - `applicationId` definitivo: `com.pachanga.manager`.
@@ -55,9 +88,9 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - `app/.env.development` (y más adelante `.env.production`) **sí van a git**: la URL del backend no es secreta.
 - Asistencias: interruptor `MOSTRAR_ASISTENCIAS` en `app/src/config.js` (ahora `false`).
 - Navegación inferior: Inicio · Partidos · Tabla · Valorar · (Admin) · Perfil.
-- Comandos solo para pruebas en local: `flask datos-demo` y `flask demo-votar` (se niegan a funcionar fuera de SQLite).
+- Comandos solo para pruebas en local: `flask datos-demo` y `flask demo-votar` (desde el 03/10/2026 exigen `PERMITIR_DATOS_DEMO=1`).
 
-## Fase 3: APK (02/10/2026)
+## Fase 3: APK (02/10/2026) — RETIRADO el 03/10/2026 (ver "Cambio de rumbo" arriba)
 - **Capacitor 8.5** con `appId` `com.pachanga.manager`. El proyecto Android está en `app/android` y sí va a git (menos lo generado).
 - **JDK 21** para compilar: Gradle 8.14.3 (el que trae Capacitor 8) solo funciona hasta Java 24, y el JBR de Android Studio es Java 25. Se descarga desde Android Studio (*Gradle JDK → Download JDK*).
 - **targetSdk / compileSdk 36** (Android 16), que es lo que exige Google Play desde el 31/08/2026; minSdk 24.
@@ -72,4 +105,4 @@ Cuando esto y `PROMPT.md` se contradigan, **manda este archivo** (son cambios ac
 - Permisos de Android: solo `INTERNET`.
 
 ## Pendiente de decidir más adelante
-- Migraciones de base de datos (Flask-Migrate) antes de la Fase 4.
+- Migraciones de base de datos (Flask-Migrate): hacen falta antes de publicar cualquier cambio que modifique las tablas, para no perder los datos de producción.

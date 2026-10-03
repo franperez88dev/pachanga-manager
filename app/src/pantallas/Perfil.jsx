@@ -108,6 +108,8 @@ export function MiPerfil() {
           Borrar mi cuenta
         </BotonConfirmar>
       </section>
+      {/* __VERSION__ lo rellena Vite al compilar (vite.config.js) */}
+      <p className="nota centrado">Pachanga Manager · versión {__VERSION__}</p>
     </div>
   );
 }

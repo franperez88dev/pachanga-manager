@@ -10,15 +10,6 @@ def _booleano(nombre, defecto="0"):
     return os.environ.get(nombre, defecto).strip().lower() in ("1", "true", "si", "sí", "yes")
 
 
-def normalizar_url_bd(url):
-    """Los hostings suelen dar 'postgres://...'; SQLAlchemy necesita el driver explícito."""
-    if url.startswith("postgres://"):
-        return "postgresql+psycopg://" + url[len("postgres://"):]
-    if url.startswith("postgresql://"):
-        return "postgresql+psycopg://" + url[len("postgresql://"):]
-    return url
-
-
 # Orígenes que usa la app durante el desarrollo: Vite (http://localhost:5173)
 # o el navegador contra 127.0.0.1. Son expresiones regulares para cualquier puerto.
 ORIGENES_DESARROLLO = [r"http://localhost(:\d+)?", r"http://127\.0\.0\.1(:\d+)?"]
@@ -27,20 +18,31 @@ ORIGENES_DESARROLLO = [r"http://localhost(:\d+)?", r"http://127\.0\.0\.1(:\d+)?"
 def cargar_config():
     """Devuelve la configuración como diccionario. Se llama al crear la app,
     no al importar el módulo, para que el .env ya esté cargado."""
-    origenes = [o.strip() for o in os.environ.get("CORS_ORIGENES", "https://localhost").split(",") if o.strip()]
+    # CORS: permiso para que una web de OTRO origen llame a la API. En producción no hace falta
+    # (la web y la API están en el mismo servidor); en tu PC sí, porque Vite sirve la web en el
+    # puerto 5173 y la API está en el 5000.
+    origenes = [o.strip() for o in os.environ.get("CORS_ORIGENES", "").split(",") if o.strip()]
     if _booleano("CORS_DESARROLLO"):
         origenes += ORIGENES_DESARROLLO
 
     return {
         "SECRET_KEY": os.environ.get("SECRET_KEY"),
-        # SQLite relativo: Flask-SQLAlchemy lo guarda en backend/instance/
-        "SQLALCHEMY_DATABASE_URI": normalizar_url_bd(os.environ.get("DATABASE_URL", "sqlite:///pachanga.db")),
+        # SQLite: un archivo, backend/instance/pachanga.db (Flask-SQLAlchemy pone la ruta relativa
+        # en la carpeta "instance"). Sirve igual en tu PC y en PythonAnywhere, donde el disco no se borra.
+        "SQLALCHEMY_DATABASE_URI": os.environ.get("DATABASE_URL", "sqlite:///pachanga.db"),
         "SQLALCHEMY_ENGINE_OPTIONS": {"pool_pre_ping": True},
+        # Carpeta con la app web compilada (la crea "npm run build" en app/)
+        "CARPETA_WEB": os.environ.get("CARPETA_WEB", os.path.join(os.path.dirname(__file__), "web")),
         # Tamaño máximo de cualquier petición (la API solo recibe JSON pequeños)
         "MAX_CONTENT_LENGTH": 1024 * 1024,
         "CORS_ORIGENES": origenes,
-        # Detrás del proxy del hosting, la IP real del cliente llega en X-Forwarded-For
+        # En PythonAnywhere las peticiones llegan a través de su proxy: con esto a 1 se lee la IP
+        # real del móvil (cabecera X-Forwarded-For). Si no, todos compartirían la IP del proxy y
+        # el bloqueo de intentos por IP bloquearía a toda la peña a la vez.
         "CONFIAR_EN_PROXY": _booleano("CONFIAR_EN_PROXY"),
+
+        # Solo en tu PC: permite los comandos de prueba (flask datos-demo, flask demo-votar)
+        "PERMITIR_DATOS_DEMO": _booleano("PERMITIR_DATOS_DEMO"),
 
         # --- Sesión y PIN ---
         "TOKEN_DIAS": _entero("TOKEN_DIAS", 90),

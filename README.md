@@ -1,20 +1,21 @@
 # Pachanga Manager
 
-App Android para organizar los partidos de fútbol de la peña: convocatorias, equipos
+Aplicación web para organizar los partidos de fútbol de la peña: convocatorias, equipos
 equilibrados, votación para rebarajar, orden en portería, goles, clasificación y
-valoraciones secretas.
+valoraciones secretas. Se usa desde el navegador del móvil (Android o iPhone) y se puede
+añadir a la pantalla de inicio como una app.
 
 | Carpeta / archivo | Qué es |
 |---|---|
-| `backend/` | La API (el "servidor"): Flask + SQLAlchemy. En local guarda los datos en SQLite. |
-| `app/` | La app: React + Vite. En `app/android`, el proyecto Android (Capacitor) que genera el APK. |
-| `recursos-play/` | Imágenes para la ficha de Google Play (se usarán al publicar). |
+| `backend/` | El servidor: Flask + SQLAlchemy. Contesta a la app (la API) y entrega la web compilada. Guarda los datos en SQLite. |
+| `backend/pachanga/web/` | La web **ya compilada** (la genera `npm run build`). Se sube a git: es lo que publica el servidor. No se edita a mano. |
+| `app/` | El código de la parte visual: React + Vite. |
 | `referencia/` | Prototipo y vista previa del diseño (no forman parte de la app). |
 | `PROMPT.md` | El encargo original. |
 | `DECISIONES.md` | Cambios acordados después. **Si contradice a `PROMPT.md`, manda `DECISIONES.md`.** |
 
-> Este README cubre la **etapa local**: probar en el ordenador y en tu móvil con el backend
-> corriendo en tu PC. Más adelante se añadirá cómo desplegar el backend y repartir el APK.
+> Los apartados 1 a 5 son para trabajar y probar **en tu PC**. El apartado 6 explica cómo
+> **publicarla en internet** (PythonAnywhere) para que la usen los colegas.
 
 ---
 
@@ -86,7 +87,7 @@ pone otra cosa, muévete primero (ver `cd` abajo).
 | `cd app` | **c**ambia de **d**irectorio: entra en la carpeta `app` (desde `pachanga-manager`). |
 | `cd ..` | Sube a la carpeta de arriba (de `app` vuelves a `pachanga-manager`). |
 | `.\algo.ps1` | Ejecuta el script `algo.ps1` que está **en esta carpeta** (`.\` = "aquí"). Solo en PowerShell. |
-| `npm run movil:instalar` | Ejecuta la tarea `movil:instalar`, que está definida en `app/package.json`. Hay que estar en la carpeta `app`. |
+| `npm run build` | Ejecuta la tarea `build`, que está definida en `app/package.json`. Hay que estar en la carpeta `app`. |
 | **Ctrl+C** | Detiene el programa que está funcionando en esa terminal (por ejemplo, el backend). |
 
 ---
@@ -155,6 +156,8 @@ npm run dev                            # enciende la app en http://127.0.0.1:517
 ```
 
 - Abre http://127.0.0.1:5173 en el navegador. Los cambios en `app/src` se ven al momento.
+- (El puerto 5000 también entrega la web, pero la **compilada** con `npm run build`, que es
+  la que se publica. Mientras programas, usa siempre el 5173.)
 - Para apagarla: **Ctrl+C**.
 
 **Verla como en el móvil:** en el navegador pulsa **F12** (herramientas de desarrollo) y
@@ -194,8 +197,8 @@ Crea **12 jugadores de prueba ya aprobados** (Feragi, Chuti, El Tanke, Rulo, Kik
 Josemi, Payo, Sergi, Toni, Manu y Guaje), **todos con el PIN `1111`**, y les pone
 valoraciones al azar para que los equipos salgan equilibrados.
 
-> Estos comandos de prueba solo funcionan con la base de datos SQLite local; en el servidor
-> de verdad se niegan a ejecutarse.
+> Estos comandos de prueba solo funcionan si tu `backend/.env` tiene `PERMITIR_DATOS_DEMO=1`
+> (la plantilla ya lo trae). En el servidor de verdad no se pone, y se niegan a ejecutarse.
 
 ### 5.2 Ser admin y jugador a la vez
 
@@ -252,7 +255,7 @@ Sigue estos pasos en orden; al lado de cada uno, lo que deberías ver.
     → Sale un PIN nuevo para pasárselo por WhatsApp; el antiguo deja de valer.
 13. **Hacer admin a otro** (Admin → Peña → *Hacer admin*). Siempre tiene que quedar uno.
 14. **Borrar cuenta** (con un jugador de prueba: Perfil → *Borrar mi cuenta*, dos toques).
-    También existe la página web http://127.0.0.1:5000/borrar-cuenta (la que pedirá Google Play).
+    También existe la página web http://127.0.0.1:5000/borrar-cuenta, para borrarla sin entrar en la app.
 15. **"Conectando con el servidor…"**: apaga el backend (Ctrl+C) y recarga la app.
     → Sale esa pantalla y reintenta sola; al volver a encender el backend, entra sola.
 
@@ -270,175 +273,193 @@ Si quieres borrar todos los datos de prueba:
 
 ---
 
-## 6. La app en tu móvil (APK de pruebas)
+## 6. Publicar la app en internet (PythonAnywhere)
 
-La app web de `app/` se mete dentro de una app Android con **Capacitor**. El resultado es un
-**APK**: el archivo que se instala en el móvil. En esta etapa, el móvil habla con el backend
-que corre en **tu PC** a través del **cable USB**.
+La app es una **página web**: los colegas la abren en el navegador del móvil y, si quieren,
+la añaden a la pantalla de inicio para que tenga su icono como cualquier app (apartado 6.5).
+Funciona igual en Android y en iPhone, y no hay que instalar ni actualizar nada: cuando
+publicas un cambio, todos lo ven la próxima vez que la abren.
 
-Todo se hace con tres comandos, que se escriben en la carpeta `app` (por dentro usan el script `app/compilar-apk.ps1`):
-
-| Lo que escribes (en la carpeta `app`) | Para qué sirve | Cuándo usarlo |
-|---|---|---|
-| `npm run movil:comprobar` | Dice si el móvil está bien conectado y si el backend está encendido. **No instala nada.** | Antes de instalar, o cuando algo no va. |
-| `npm run movil:instalar` | Fabrica el APK con tu código actual y lo instala en el móvil. | La primera vez y cada vez que cambies algo de la app. |
-| `npm run movil:conectar` | Vuelve a "enchufar" el móvil al backend del PC, sin fabricar nada. | Tras desenchufar el cable o reiniciar el PC o el móvil. |
-
-### 6.1 Preparar el PC (solo la primera vez)
-
-Ya está hecho en este ordenador. Lo dejo apuntado por si cambias de PC:
-
-1. **Android Studio** con la **plataforma Android 16 (API 36)** y las **Build-Tools 36**
-   (Android Studio → *More Actions* → **SDK Manager**: pestaña *SDK Platforms* para la
-   plataforma; pestaña *SDK Tools*, con *Show Package Details* marcado, para las Build-Tools
-   y las *Platform-Tools*).
-2. **Un JDK 21** (Gradle no funciona con el Java 25 que trae Android Studio). Aquí está en
-   `C:\Users\SuFran\.jdks\temurin-21...`. El script lo encuentra solo.
-3. El **keystore** de la firma (apartado 6.5).
-
-### 6.2 Preparar el móvil (solo la primera vez)
-
-Pasos para tu **Samsung A52s** (en otras marcas los menús se llaman parecido):
-
-1. **Activa el modo desarrollador:** *Ajustes → Acerca del teléfono → Información de
-   software* y toca **7 veces seguidas** sobre **Número de compilación**. Te pedirá el PIN de
-   desbloqueo y saldrá "Modo desarrollador activado".
-2. **Activa la depuración USB:** vuelve a *Ajustes*; al final de la lista hay un menú nuevo,
-   **Opciones de desarrollador**. Entra y activa **Depuración USB**.
-3. **Conecta el móvil al PC con el cable USB.** Tiene que ser un cable de **datos**: algunos
-   cables baratos solo cargan.
-4. **Autoriza el PC:** con el móvil desbloqueado saldrá el aviso **"¿Permitir depuración
-   USB?"**. Marca *Permitir siempre desde este ordenador* y pulsa **Permitir**. Si no sale,
-   desenchufa y vuelve a enchufar el cable.
-
-### 6.3 Probar la app en el móvil, paso a paso
-
-Necesitas **dos terminales** en VS Code: una para el backend y otra para la app. Para abrir
-una segunda terminal, pulsa el **+** que hay arriba a la derecha del panel de terminales.
-Para pasar de una a otra, haz clic en su nombre en la lista de la derecha.
-
-**Paso 1. Enciende el backend (terminal 1).** Si ya lo tienes encendido, sáltate este paso.
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-flask run --debug
-```
-
-- `cd backend`: entra en la carpeta del backend. Si la terminal ya pone `...\backend>`, no hace falta.
-- `.\.venv\Scripts\Activate.ps1`: activa el entorno de Python; la línea empezará por `(.venv)`.
-- `flask run --debug`: enciende el backend. **Va bien** si al final pone
-  `Running on http://127.0.0.1:5000`. Esta terminal se queda ocupada: **no la cierres**.
-
-**Paso 2. Ve a la carpeta `app` (terminal 2).** Abre una terminal nueva con el **+**. Se abre en
-`pachanga-manager`, así que escribe:
-
-```powershell
-cd app
-```
-
-La línea debe acabar en `...\pachanga-manager\app>`.
-
-**Paso 3. Comprueba que todo está listo.** Con el móvil conectado por el cable:
-
-```powershell
-npm run movil:comprobar
-```
-
-**Va bien** si salen dos líneas verdes:
+El servidor es **PythonAnywhere** (plan gratuito). El recorrido de cada cambio es siempre el mismo:
 
 ```text
-OK  Móvil conectado y con la depuración USB autorizada.
-OK  El backend está encendido.
+  TU PC                          GITHUB                       PYTHONANYWHERE
+  cambias el código      --->    subes los cambios    --->    los descargas (git pull)
+  npm run build                  (GitHub Desktop)             y pulsas "Reload"
 ```
 
-Si alguna sale en amarillo con `NO`, el propio mensaje dice qué hacer (normalmente:
-autorizar el PC en el aviso del móvil, o encender el backend). Arréglalo y repite este paso.
+En PythonAnywhere **no se compila nada**: `npm run build` (en tu PC) deja la web lista en
+`backend/pachanga/web`, esa carpeta se sube a GitHub con el resto, y el mismo programa de
+Python (Flask) entrega la web y contesta a la app.
 
-**Paso 4. Fabrica e instala la app.**
+### 6.1 Antes de publicar: compilar y subir a GitHub (en tu PC)
 
-```powershell
-npm run movil:instalar
+1. **Compila la web** (terminal en la carpeta `app`):
+
+   ```powershell
+   npm run build
+   ```
+
+   **Va bien** si termina con `✓ built in ...`. Crea o actualiza la carpeta `backend/pachanga/web`.
+
+2. **Prueba la versión compilada** antes de publicarla. Con el backend encendido
+   (`flask run --debug` en `backend`), abre **http://127.0.0.1:5000** (ojo: puerto **5000**,
+   no el 5173). Es exactamente lo que verán tus colegas.
+
+3. **Sube los cambios a GitHub** con GitHub Desktop: escribe un resumen del cambio,
+   pulsa **Commit to main** y luego **Push origin**.
+
+4. **El repositorio tiene que ser público** para que PythonAnywhere pueda descargarlo sin
+   contraseñas (solo hay que hacerlo una vez): en github.com abre el repositorio →
+   **Settings** → baja hasta **Danger Zone** → **Change repository visibility** → **Public**.
+
+   > Al hacerlo público cualquiera puede leer el código. No contiene claves ni datos de la
+   > peña (eso vive en el `.env` y en la base de datos, que nunca se suben). Sí se ven el
+   > nombre y el correo con los que firmas los commits.
+
+### 6.2 Montar la web en PythonAnywhere (solo la primera vez)
+
+**Paso 1. Crea la cuenta.** En https://www.pythonanywhere.com → **Pricing & signup** →
+**Create a Beginner account** (gratuita). El **nombre de usuario** que elijas será la
+dirección de la app: `https://TU_USUARIO.pythonanywhere.com`. En todo lo que sigue,
+cambia `TU_USUARIO` por ese nombre.
+
+**Paso 2. Abre una consola.** Arriba, pestaña **Consoles** → en *Start a new console* pulsa
+**Bash**. Se abre una terminal de Linux **en el servidor** (no en tu PC). Los comandos se pegan
+con Ctrl+V (o clic derecho → Pegar) y se ejecutan con Enter.
+
+**Paso 3. Descarga el código y prepara Python.** Pega estos comandos **uno a uno**:
+
+```bash
+git clone https://github.com/franperez88dev/pachanga-manager.git
+```
+Descarga el proyecto a la carpeta `pachanga-manager`. **Va bien** si acaba sin la palabra `fatal`.
+
+```bash
+mkvirtualenv --python=/usr/bin/python3.13 pachanga
+```
+Crea un entorno virtual llamado `pachanga` (como el `.venv` de tu PC). Al terminar, la línea
+empezará por `(pachanga)`.
+
+```bash
+pip install -r pachanga-manager/backend/requirements.txt
+```
+Instala Flask y el resto de librerías. Tarda un minuto. **Va bien** si acaba con `Successfully installed ...`.
+
+**Paso 4. Crea el `.env` del servidor.** Pega estas dos líneas:
+
+```bash
+cd ~/pachanga-manager/backend
+printf 'SECRET_KEY=%s\nCORS_DESARROLLO=0\nCONFIAR_EN_PROXY=1\n' "$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" > .env
 ```
 
-Irán apareciendo muchas líneas. Los pasos importantes salen en verde, empezando por `==>`:
+La segunda crea el archivo `.env` con tres ajustes:
 
-| Lo que ves | Qué está pasando |
+| Ajuste | Qué hace |
 |---|---|
-| `==> Buscando el JDK y el SDK` | Comprueba que tienes las herramientas. |
-| `==> Compilando la web para el móvil` | Prepara la app con la dirección del backend para el móvil. |
-| `==> Copiando la web al proyecto Android` | Mete esa app dentro del proyecto Android. |
-| `==> Generando el APK de pruebas` | Fabrica el APK y lo firma. **La primera vez tarda varios minutos**; después, menos de uno. Salen muchas líneas `> Task ...`: es normal. |
-| `BUILD SUCCESSFUL` | El APK está fabricado. |
-| `==> Instalando en el móvil` | Lo instala en el móvil por el cable, encima de la versión anterior si la hay (no borra tu sesión). |
-| `Success` y `Instalada. Abre 'Pachanga Manager' en el móvil.` | **Terminado.** |
+| `SECRET_KEY=...` | Una clave aleatoria nueva, **distinta de la de tu PC**, generada en el momento. |
+| `CORS_DESARROLLO=0` | En el servidor no hace falta el permiso que usa Vite en tu PC. |
+| `CONFIAR_EN_PROXY=1` | Para ver la IP real de cada móvil. **Imprescindible**: sin esto, el bloqueo por intentos fallidos bloquearía a toda la peña a la vez. |
 
-Si en lugar de eso sale una línea roja que empieza por `ERROR:`, lee lo que dice y mira el
-apartado [8. Problemas frecuentes](#8-problemas-frecuentes).
+Para comprobarlo: `cat .env` debe mostrar esas tres líneas.
 
-**Paso 5. Abre la app en el móvil.** Busca el icono verde con un balón, **Pachanga Manager**.
-Verás la pantalla verde de arranque, luego "Conectando con el servidor…" un instante y,
-después, la pantalla para entrar. Entra con tu **mote y tu PIN** y sigue el
-[guion de prueba del apartado 5.3](#53-guion-de-prueba-completo), esta vez en el móvil. Prueba
-también el **botón "atrás"** de Android (vuelve a la pantalla anterior y, desde Inicio, sale
-de la app) y a **girar el móvil** en la pista de los equipos.
+**Paso 5. Crea tu usuario admin en el servidor:**
 
-**Paso 6. Cuando termines.** En la terminal 1 pulsa **Ctrl+C** para apagar el backend. Ya
-puedes desenchufar el móvil. La app sigue instalada, pero sin el backend del PC se quedará en
-"Conectando con el servidor…".
-
-### 6.4 Las siguientes veces
-
-| Situación | Qué hacer |
-|---|---|
-| Quiero volver a probar otro día | Paso 1 (encender backend), conectar el móvil, y en la carpeta `app`: `npm run movil:conectar`. No hace falta reinstalar. |
-| He desenchufado el cable o he reiniciado el PC o el móvil, y la app se queda en "Conectando…" | `npm run movil:conectar` (con el backend encendido). |
-| He cambiado código de la app (`app/src`) | `npm run movil:instalar` otra vez. Se instala encima y conservas la sesión. |
-| He cambiado código del backend | Nada: con `flask run --debug` el backend se reinicia solo. |
-
-> **¿Por qué hay que "volver a conectar"?** La app del móvil busca el backend en su propia
-> dirección `127.0.0.1:5000`. El script le pide a Android (con `adb reverse`) que todo lo que
-> vaya ahí lo mande por el cable a tu PC. Ese "desvío" se borra al desenchufar el cable o al
-> reiniciar, y `npm run movil:conectar` lo vuelve a crear.
-
-### 6.5 La firma del APK (¡importante!)
-
-Android solo deja instalar una versión nueva **encima** de la que ya tienes si las dos están
-**firmadas con la misma clave**. Esa clave es como el sello de la peña: demuestra que la
-actualización viene del mismo sitio que la app original. Si algún día la pierdes, ningún
-móvil aceptará tus actualizaciones. Cada colega tendría que **desinstalar la app** (perdiendo
-su sesión) e instalar la nueva, y en Google Play **no podrías volver a actualizarla nunca**.
-
-- **Dónde está la clave (el *keystore*):** `C:\Users\SuFran\.pachanga\pachanga.jks`, fuera del repositorio.
-- **Su contraseña:** dentro de `app\android\keystore.properties`, que no se sube a git.
-- **Qué hacer YA:** copia **esos dos archivos** a un sitio seguro fuera del PC: un pendrive
-  que guardes, tu Google Drive personal, un gestor de contraseñas… Si se rompe el disco y no
-  tienes copia, no hay forma de recuperarla.
-- **Nunca** los subas a GitHub ni los mandes por WhatsApp.
-
-El script firma con esa clave tanto la versión de pruebas como la versión final.
-
-### 6.6 Número de versión
-
-La versión está en **un solo sitio**: la línea `"version"` de `app/package.json`
-(por ejemplo `"version": "0.1.0"`). Android necesita además un número entero que **siempre
-suba** (`versionCode`), y se calcula solo: `0.1.0` → `100`, `1.2.3` → `10203`.
-
-Para subirla, en la carpeta `app`:
-
-```powershell
-npm run version:subir         # 0.1.0 -> 0.1.1   (arreglos pequeños)
-npm run version:subir-menor   # 0.1.1 -> 0.2.0   (novedades)
+```bash
+flask create-admin
 ```
 
-Súbela antes de fabricar una versión para repartir. Para tus pruebas no hace falta.
+Te pide tu mote y tu nombre real, y te muestra **tu PIN**. **Apúntalo** (en `notas-privadas.md`,
+no en este README): es distinto del que usas en tu PC, porque el servidor tiene su propia
+base de datos, vacía.
 
-### 6.7 Instalarlo en el móvil de un colega (más adelante)
+**Paso 6. Crea la web.** Pestaña **Web** → **Add a new web app** → **Next** →
+elige **Manual configuration** (no "Flask") → **Python 3.13** → **Next**.
 
-Cuando el backend esté en internet (Fase 4), el APK se podrá pasar por WhatsApp o Drive. Al
-abrirlo, Android pedirá **permitir instalar apps de orígenes desconocidos** para WhatsApp,
-Drive o el gestor de archivos que se use: hay que aceptarlo una vez. Por ahora no tiene
-sentido, porque el backend solo existe en tu PC.
+**Paso 7. Configúrala.** En esa misma pestaña **Web**, bajando por la página:
+
+1. **Code → Source code:** escribe `/home/TU_USUARIO/pachanga-manager/backend`
+2. **Code → WSGI configuration file:** pulsa el enlace (acaba en `_wsgi.py`). Se abre un
+   editor: **borra todo** lo que haya y pega esto (cambiando `TU_USUARIO`):
+
+   ```python
+   import sys
+
+   ruta = "/home/TU_USUARIO/pachanga-manager/backend"
+   if ruta not in sys.path:
+       sys.path.insert(0, ruta)
+
+   from wsgi import application
+   ```
+
+   Pulsa **Save** (arriba a la derecha) y vuelve a la pestaña **Web**. Este archivo le dice a
+   PythonAnywhere dónde está el proyecto y que arranque lo que hay en `backend/wsgi.py`.
+3. **Virtualenv:** escribe `pachanga` y pulsa el ✔. Se convertirá en
+   `/home/TU_USUARIO/.virtualenvs/pachanga`.
+4. **Static files:** añade una fila con **URL** `/assets/` y **Directory**
+   `/home/TU_USUARIO/pachanga-manager/backend/pachanga/web/assets`. Así las imágenes y el
+   JavaScript los entrega PythonAnywhere directamente, sin gastar tu cupo de CPU.
+5. **Security → Force HTTPS:** actívalo (**Enabled**).
+6. Arriba del todo, pulsa el botón verde **Reload TU_USUARIO.pythonanywhere.com**.
+
+**Paso 8. Pruébala.** Abre `https://TU_USUARIO.pythonanywhere.com` en el navegador del PC y
+en el móvil. Debe salir la pantalla de entrar: entra con tu mote y el PIN del paso 5.
+
+> Si sale **"Something went wrong"**: en la pestaña **Web**, abre el **Error log** y mira las
+> últimas líneas (apartado [8. Problemas frecuentes](#8-problemas-frecuentes)).
+
+### 6.3 Publicar un cambio (cada vez)
+
+1. **En tu PC**, si has tocado algo de `app/`: `npm run build` en la carpeta `app`.
+   (Si solo has tocado el backend, no hace falta.)
+2. **En tu PC**: commit y **Push origin** con GitHub Desktop.
+3. **En PythonAnywhere**, pestaña **Consoles** → abre tu consola Bash y pega:
+
+   ```bash
+   cd ~/pachanga-manager && git pull
+   ```
+
+   **Va bien** si lista los archivos cambiados (o dice `Already up to date` si no había nada).
+4. Pestaña **Web** → botón verde **Reload**.
+
+Para saber si el móvil ya ve la versión nueva, mira **Perfil**: abajo pone el número de
+versión. Si quieres que cambie con cada publicación, súbelo antes del paso 1 con
+`npm run version:subir` (en `app`).
+
+> Lo que más se olvida es el **`npm run build`**: si no lo haces, el servidor seguirá
+> entregando la web antigua aunque hayas subido el código nuevo.
+>
+> Si el cambio añade librerías a `backend/requirements.txt`, después del `git pull` ejecuta
+> también: `workon pachanga && pip install -r backend/requirements.txt`
+
+### 6.4 Mantenimiento
+
+- **Renovar cada mes (¡importante!).** En el plan gratuito la web **se desactiva si no la
+  renuevas**: una vez al mes entra en la pestaña **Web** y pulsa el botón amarillo
+  **Run until 1 month from today**. PythonAnywhere avisa por correo unos días antes; ponte
+  además un recordatorio en el calendario.
+- **Copia de seguridad.** Todos los datos de la peña están en **un solo archivo**:
+  `backend/instance/pachanga.db`. Para guardarlo: pestaña **Files** → entra en
+  `pachanga-manager/backend/instance/` → icono de descarga junto a `pachanga.db`.
+  Hazlo de vez en cuando (y siempre antes de publicar un cambio grande).
+- **Si un cambio modifica la estructura de la base de datos** (campos nuevos), el servidor
+  no la actualiza solo. Antes de publicar un cambio así hay que preparar la actualización
+  de la base de datos con cuidado para no perder los datos de la peña.
+- **Límites del plan gratuito:** 100 segundos de CPU al día (de sobra para una peña) y
+  512 MB de disco. Si algún día se queda corto, el plan de pago quita la renovación mensual.
+- **Los comandos de prueba (`flask datos-demo`) no funcionan en el servidor** a propósito:
+  crearían jugadores con un PIN que conoce todo el mundo.
+
+### 6.5 Cómo la usan tus colegas
+
+Pásales el enlace `https://TU_USUARIO.pythonanywhere.com`. Para tenerla como una app:
+
+- **Android (Chrome):** menú **⋮** → **Añadir a pantalla de inicio** (o **Instalar aplicación**).
+- **iPhone (Safari):** botón **Compartir** → **Añadir a pantalla de inicio**.
+
+Aparece el icono verde del balón y se abre a pantalla completa, sin la barra del navegador.
+Cada uno se registra con su mote, elige avatar, **apunta su PIN** y espera a que lo apruebes
+desde **Admin → Altas**.
 
 ---
 
@@ -453,12 +474,11 @@ sentido, porque el backend solo existe en tu PC.
 | `backend` | `flask datos-demo` | Solo pruebas: 12 jugadores con PIN 1111 |
 | `backend` | `flask demo-votar N --si 5 --no 1` | Solo pruebas: votos en el partido N |
 | `app` | `npm install` | Instala las dependencias (la primera vez o si cambia `package.json`) |
-| `app` | `npm run dev` | Enciende la app en el puerto 5173 |
-| `app` | `npm run build` | Genera la web final en `app/dist` |
-| `app` | `npm run movil:comprobar` | Dice si el móvil está bien conectado y si el backend está encendido |
-| `app` | `npm run movil:instalar` | Compila el APK de pruebas y lo instala en el móvil conectado por USB |
-| `app` | `npm run movil:conectar` | Vuelve a conectar el móvil con el backend del PC (tras desenchufar el cable) |
-| `app` | `npm run version:subir` | Sube la versión de la app (0.1.0 → 0.1.1) |
+| `app` | `npm run dev` | Enciende la app en el puerto 5173 (para programar) |
+| `app` | `npm run build` | Compila la web y la deja en `backend/pachanga/web` (hazlo antes de publicar) |
+| `app` | `npm run version:subir` | Sube la versión de la app (0.1.0 → 0.1.1); se ve en Perfil |
+| PythonAnywhere | `cd ~/pachanga-manager && git pull` | Descarga en el servidor lo último de GitHub (y luego **Reload** en la pestaña Web) |
+| PythonAnywhere | `workon pachanga` | Activa el entorno virtual del servidor en una consola nueva |
 
 ---
 
@@ -475,9 +495,10 @@ sentido, porque el backend solo existe en tu PC.
 | *"no such column"* u otros errores de base de datos | Ver [Empezar de cero](#54-empezar-de-cero). |
 | He olvidado mi PIN de admin | Si hay otro admin, que te dé uno nuevo desde Admin → Peña. Si no, empieza de cero. |
 | Al escribir un comando `.ps1` se abre el **Bloc de notas** y no pasa nada | Estás en el **Símbolo del sistema**, no en PowerShell: ver [La terminal tiene que ser PowerShell](#la-terminal-tiene-que-ser-powershell-no-el-símbolo-del-sistema). |
-| `npm run movil:...` dice *"Missing script"* | No estás en la carpeta `app`: escribe `cd app` (o `cd ..\app` si estás en `backend`). |
-| *"No encuentro un JDK entre la versión 17 y la 24"* | Falta el JDK 21: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
-| *"Falta la plataforma Android 36"* | Instálala desde el SDK Manager: apartado [6.1](#61-preparar-el-pc-solo-la-primera-vez). |
-| El script dice `NO` sobre el móvil | Lee el mensaje amarillo: casi siempre es autorizar el PC en el aviso del móvil, activar la depuración USB o usar un cable de datos ([6.2](#62-preparar-el-móvil-solo-la-primera-vez)). Repite `npm run movil:comprobar` hasta que salga `OK`. |
-| La app del móvil se queda en *"Conectando…"* | ¿Está `flask run` encendido? ¿Has desenchufado el cable? Ejecuta `npm run movil:conectar`. |
-| *"INSTALL_FAILED_UPDATE_INCOMPATIBLE"* al instalar | Hay instalada una versión firmada con otra clave: desinstala la app del móvil una vez y vuelve a instalar. |
+| `npm run ...` dice *"Missing script"* | No estás en la carpeta `app`: escribe `cd app` (o `cd ..\app` si estás en `backend`). |
+| En http://127.0.0.1:5000 sale *"La app web todavia no esta compilada"* | Falta compilar: en la carpeta `app`, `npm run build`. |
+| `flask datos-demo` dice *"solo para pruebas en tu PC"* | Falta `PERMITIR_DATOS_DEMO=1` en tu `backend/.env` (solo en tu PC, nunca en el servidor). |
+| **PythonAnywhere:** *"Something went wrong"* | Pestaña **Web** → **Error log** (las últimas líneas dicen qué falla). Lo más habitual: `TU_USUARIO` mal escrito en el archivo WSGI o en *Source code*, el *Virtualenv* sin poner, o que falta el `.env` (paso 4 de [6.2](#62-montar-la-web-en-pythonanywhere-solo-la-primera-vez)). Tras corregir, **Reload**. |
+| **PythonAnywhere:** he publicado y sigo viendo la versión antigua | ¿Hiciste `npm run build` antes del commit? ¿`git pull` en el servidor? ¿**Reload**? Mira la versión en Perfil. |
+| **PythonAnywhere:** la web ha dejado de funcionar "de repente" | Seguramente ha caducado: pestaña **Web** → **Run until 1 month from today** ([6.4](#64-mantenimiento)). |
+| **PythonAnywhere:** `git pull` dice que hay cambios locales o conflictos | En el servidor no se edita código. Para descartar lo tocado allí: `git checkout -- .` y repite el `git pull` (no afecta ni al `.env` ni a la base de datos). |

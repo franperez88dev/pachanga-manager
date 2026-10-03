@@ -4,24 +4,22 @@ import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router";
 
 // Fuentes empaquetadas con la app (sin depender de internet ni de un CDN)
-import "@fontsource/barlow/400.css";
-import "@fontsource/barlow/500.css";
-import "@fontsource/barlow/600.css";
-import "@fontsource/barlow/700.css";
-import "@fontsource/barlow-condensed/600.css";
-import "@fontsource/barlow-condensed/700.css";
+import "@fontsource/barlow/latin-400.css";
+import "@fontsource/barlow/latin-500.css";
+import "@fontsource/barlow/latin-600.css";
+import "@fontsource/barlow/latin-700.css";
+import "@fontsource/barlow-condensed/latin-600.css";
+import "@fontsource/barlow-condensed/latin-700.css";
 import "./estilos.css";
 
 import App from "./App";
 import { AvisosProvider } from "./avisos";
-import { activarBotonAtras } from "./botonAtras";
 import Conectando from "./pantallas/Conectando";
 import { SesionProvider } from "./sesion";
 
-activarBotonAtras();
-
-// HashRouter: las direcciones van tras un # (index.html#/partidos). Funciona dentro de
-// Capacitor sin configurar nada en un servidor, porque el archivo siempre es index.html.
+// HashRouter: las direcciones van tras un # (/#/partidos). El servidor siempre entrega el
+// mismo index.html y es React quien decide qué pantalla pintar, así no hay que configurar
+// rutas en el servidor.
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <HashRouter>
