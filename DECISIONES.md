@@ -46,7 +46,7 @@ elegir" de más abajo).
 - **Liberar hueco.** Hasta **24 horas antes** del partido, sin consecuencias. Con **menos de 24
   horas**, el que juega se lleva una **multa**, **aunque un reserva ocupe su sitio**. Los reservas
   se borran siempre sin multa. La app avisa antes de pulsar.
-- **Multas sin importe.** Solo quedan apuntadas (jugador, partido, motivo). El admin las marca como
+- **Multas** (el importe llegó después: ver el apartado siguiente). Quedan apuntadas (jugador, partido, motivo). El admin las marca como
   **pagada** o **perdonada** (y puede deshacerlo) en *Admin → Multas*. Cada jugador ve solo las
   suyas (en Perfil, y un aviso en Inicio mientras tenga alguna pendiente).
 - **Con los equipos hechos, la lista se cierra** para los jugadores (ni apuntarse ni borrarse).
@@ -57,9 +57,9 @@ elegir" de más abajo).
   apunte con los equipos hechos, entra de reserva.
 - **Crear equipos** usa siempre a los 10 primeros de la lista; hacen falta exactamente 10.
 - **Los reservas no cuentan**: no votan, no apuntan goles y el partido no les suma como jugado.
-- **Precio del partido**: texto libre del admin (máx. 200 caracteres), p. ej. "Pagar a Feragi
-  (2,2 € anticipado | 2,5 € el día del partido)". Lo ven todos en la ficha del partido. Al crear
-  un partido sale relleno con el del anterior. La app no lleva cuentas de quién ha pagado.
+- **Precio del partido**: lo ven todos en la ficha del partido y, al crear uno, sale relleno con el
+  del anterior. Empezó como texto libre; ahora va por desplegables (ver el apartado siguiente).
+  La app no lleva cuentas de quién ha pagado el partido.
 - **Si se borra un partido** (solo se puede si está abierto), se borran también sus multas.
 - **Hora**: el servidor va en UTC y las fechas de los partidos se guardan en hora de España; las
   "24 horas" se calculan con `ZONA_HORARIA` (por defecto `Europe/Madrid`). El plazo se puede
@@ -68,6 +68,28 @@ elegir" de más abajo).
   se guarda en el móvil; si no se elige nada, se usa el tema del móvil.
 - **Base de datos**: los campos nuevos se añaden solos al arrancar (`migraciones.py`), sin tocar los
   datos. Los convocados de partidos anteriores pasan a ser "los que juegan" de ese partido.
+
+## ⭐ Precio por desplegables, importe de las multas y "multa pagada" (03/10/2026)
+
+Cambia dos puntos del apartado anterior: el precio ya no es un texto libre y las multas sí llevan importe.
+
+- **Precio del partido.** La frase es fija: **"Pagar a X (A € anticipado | B € el día del partido)"**.
+  El admin solo elige tres desplegables (a quién y los dos precios), cada uno con **"Añadir otro…"**
+  para escribir un nombre o un precio nuevo. Los desplegables ofrecen lo habitual (Feragi y Ortega;
+  2,2 € y 2,5 €; se cambia con `COBRADORES_HABITUALES` y `PRECIOS_HABITUALES_CENTIMOS`) más todo lo
+  que ya se haya usado en algún partido. Los precios se guardan en céntimos.
+  "fran" y "Fran" son la misma persona: se guarda como ya estuviera escrito (o como el mote del jugador).
+  Los partidos creados con el texto libre de la versión anterior siguen enseñando ese texto.
+- **Importe de la multa.** Nace con 0,00 € (configurable con `MULTA_INICIAL_CENTIMOS`) y el admin lo
+  sube o lo baja **de 10 en 10 céntimos** con − y + en *Admin → Multas*; así puede ir aumentándola
+  si pasan los días sin pagar. La subida es manual (no hay recargo automático por día). Una multa
+  ya pagada o perdonada no cambia de importe.
+- **"Multa pagada".** El jugador ve en su Perfil cuánto debe y a quién (el que cobra ese partido)
+  y puede pulsar **Multa pagada**. Eso **no la da por pagada**: deja un aviso para el admin, que es
+  quien la marca como pagada. El jugador puede retirar el aviso.
+- **A quién le llega el aviso.** Al admin cuyo mote coincide con el "Pagar a" de ese partido (a él
+  le cuenta en el globo rojo). Si quien cobra no es admin, o el partido no lo dice, a todos los admins.
+  La app no manda notificaciones al móvil: el aviso se ve al entrar en la app.
 
 ## Fase 0 (30/09/2026)
 - La decisión de hosting se aplaza a la Fase 4 (las condiciones de los planes gratuitos cambian a menudo).

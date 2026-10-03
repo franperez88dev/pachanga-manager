@@ -230,10 +230,14 @@ Sigue estos pasos en orden; al lado de cada uno, lo que deberías ver.
 2. **Aprobar el alta** (ventana de admin → pestaña **Admin → Altas**; el globo rojo indica
    que hay algo pendiente). Pulsa *Aprobar*.
    → En unos segundos (o pulsando *Comprobar ahora*), el jugador nuevo entra solo.
-3. **Crear un partido** (admin → **Partidos → + Nuevo**): día, hora, lugar y, si quieres, el
-   **precio** (un texto libre, por ejemplo `Pagar a Feragi (2,2 € anticipado | 2,5 € el día
-   del partido)`). El lugar y el precio salen ya rellenos con los del partido anterior.
-   → Se abre la ficha del partido con la lista de **Apuntados (0/10)** vacía.
+3. **Crear un partido** (admin → **Partidos → + Nuevo**): día, hora, lugar y el **precio**.
+   La frase del precio es siempre la misma y solo se eligen tres desplegables:
+   **Pagar a** `[Feragi ▾]` **(** `[2,2 € ▾]` **anticipado |** `[2,5 € ▾]` **el día del partido)**.
+   Cada desplegable termina en **Añadir otro…**: al elegirlo aparece un campo para escribir
+   otro nombre u otro precio (en euros: `3` o `2,8`). Lo que añadas así queda en el
+   desplegable para los siguientes partidos. Debajo se ve cómo quedará la frase, y todo sale
+   ya relleno con lo del partido anterior.
+   → Se abre la ficha del partido con el aviso del precio y la lista de **Apuntados (0/10)** vacía.
 4. **Reservar hueco** (incógnito, como Feragi → el partido → *✋ Reservar hueco*).
    → Feragi aparece en la lista con el número **1)** y el aviso amarillo con el precio.
    Para llenar el partido sin entrar con más cuentas:
@@ -267,9 +271,22 @@ Sigue estos pasos en orden; al lado de cada uno, lo que deberías ver.
 
    → Recarga la página del admin: con **6 síes** se activa *Rebarajar*. Al pulsarlo salen
    equipos nuevos y empieza una votación nueva. Máximo **3 repartos** en total.
-9. **Multas** (admin → **Admin → Multas**): cada multa se marca como *Pagada* o se *Perdona*
-   (y *Deshacer* si te equivocas). El jugador ve las suyas en **Perfil → Mis multas**, y en
-   Inicio le sale un aviso mientras tenga alguna pendiente.
+9. **Multas** (admin → **Admin → Multas**). Cada multa pendiente tiene:
+   - un contador **− 0,00 € +** para poner el importe, **de 10 en 10 céntimos** (y para ir
+     subiéndolo si pasan los días y no paga);
+   - los botones *Perdonar* y *Pagada* (y *Deshacer* si te equivocas).
+
+   El jugador (incógnito → **Perfil → Mis multas**) ve **cuánto debe y a quién** (el que cobra
+   ese partido) y tiene el botón **✔ Multa pagada**. Al pulsarlo:
+   → A él le queda "Has avisado de que la has pagado. Falta que Feragi lo confirme" (puede
+   *Retirar aviso* si pulsó sin querer). La multa **sigue pendiente**: quien la da por pagada
+   es el admin.
+   → Al admin le sube el **globo rojo** de la pestaña Admin y, en Multas, esa multa aparece
+   arriba con "Feragi dice que ya la ha pagado". Pulsa *Pagada* y listo.
+   → El aviso le llega **al admin que cobra ese partido** (si en "Pagar a" pone el mote de
+   un admin). Si quien cobra no es admin, les llega a todos los admins.
+   Mientras tenga alguna multa sin pagar, al jugador le sale en Inicio "Tienes 1 multa
+   pendiente · debes 0,30 €".
 10. **Cerrar el partido**: *Cerrar partido* → indica el resultado con − y +.
     → Se abre la **planilla**: goles y gpp (goles en propia puerta) de cada jugador. Si no
     cuadra con el resultado sale un aviso, pero deja guardar.
