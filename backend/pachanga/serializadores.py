@@ -7,7 +7,7 @@ Los tests de privacidad lo comprueban.
 from flask import current_app
 
 from .models import EQUIPO_BLANCO, EQUIPO_NEGRO, PLAZAS, VotoRebarajar
-from .servicios import lleva_multa
+from .servicios import lleva_multa, texto_pago
 
 NOMBRES_EQUIPO = {EQUIPO_BLANCO: "Nevados C.F.", EQUIPO_NEGRO: "Sombras F.C."}
 # Formación 1-2-2 de fútbol sala, por el número de posición guardado con cada jugador
@@ -42,7 +42,11 @@ def partido_resumen(p, usuario):
         "id": p.id,
         "fecha": fecha_partido(p.fecha),
         "lugar": p.lugar,
-        "info_pago": p.info_pago,
+        # La frase del precio ya montada (para enseñarla) y sus tres piezas (para el formulario del admin)
+        "info_pago": texto_pago(p),
+        "pago_a": p.pago_a,
+        "precio_anticipado": p.precio_anticipado,
+        "precio_dia": p.precio_dia,
         "estado": p.estado,
         "equipos_generados": p.equipos_generados,
         # null mientras el partido está abierto
@@ -145,5 +149,17 @@ def multa(m):
         "partido": {"id": m.partido.id, "fecha": fecha_partido(m.partido.fecha), "lugar": m.partido.lugar},
         "motivo": m.motivo,
         "estado": m.estado,
+        "importe_centimos": m.importe_centimos,
+        # A quién se le paga: el mismo que cobra ese partido (None si el partido no lo dice)
+        "cobrador": m.partido.pago_a,
+        # true si el jugador ha dicho "ya la he pagado" y el admin aún no lo ha confirmado
+        "aviso_pago": m.aviso_pago is not None,
         "fecha": m.fecha.isoformat(timespec="seconds") + "Z",
     }
+
+
+def multa_admin(m, admin, motes_admins):
+    """Para el panel: además, si el aviso de pago le toca atender a ESTE admin. Le toca al que
+    cobra el partido; si el que cobra no es ningún admin (o no se indicó), les toca a todos."""
+    cobrador = (m.partido.pago_a or "").casefold()
+    return {**multa(m), "me_toca": cobrador == admin.mote_normalizado or cobrador not in motes_admins}

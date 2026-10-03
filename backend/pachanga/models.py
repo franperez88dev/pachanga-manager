@@ -82,7 +82,12 @@ class Match(db.Model):
     goles_blanco = db.Column(db.Integer)
     goles_negro = db.Column(db.Integer)
     creado = db.Column(db.DateTime, nullable=False, default=ahora)
-    # Texto libre del admin sobre el precio, p. ej. "Pagar a Feragi (2,2 € anticipado | 2,5 € el día del partido)"
+    # Precio: "Pagar a <pago_a> (<precio_anticipado> € anticipado | <precio_dia> € el día del partido)".
+    # Los precios se guardan en céntimos (220 = 2,20 €) para no tener líos con los decimales.
+    pago_a = db.Column(db.String(30))
+    precio_anticipado = db.Column(db.Integer)
+    precio_dia = db.Column(db.Integer)
+    # Texto libre de la primera versión del precio. Solo se enseña si el partido no tiene `pago_a`.
     info_pago = db.Column(db.String(200))
 
     # Todos los apuntados (titulares y reservas). Usa `titulares` y `reservas` para distinguirlos.
@@ -141,8 +146,8 @@ class VotoRebarajar(db.Model):
 
 class Multa(db.Model):
     """Multa por liberar el hueco con menos de 24 horas (o porque el admin la pone al quitar a
-    alguien). No lleva importe: solo queda apuntada hasta que el admin la marca como pagada
-    o la perdona."""
+    alguien). El admin le pone el importe (y lo va subiendo si pasan los días sin pagar) y al
+    final la marca como pagada o la perdona. El jugador puede avisar de que ya la ha pagado."""
     __tablename__ = "multas"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -151,6 +156,9 @@ class Multa(db.Model):
     motivo = db.Column(db.String(120), nullable=False)
     estado = db.Column(db.String(10), nullable=False, default=MULTA_PENDIENTE)
     fecha = db.Column(db.DateTime, nullable=False, default=ahora)
+    importe_centimos = db.Column(db.Integer, nullable=False, default=0)
+    # Cuándo dijo el jugador "ya la he pagado" (None = no ha dicho nada). Quien confirma es el admin.
+    aviso_pago = db.Column(db.DateTime)
 
     usuario = db.relationship("User")
     partido = db.relationship("Match")

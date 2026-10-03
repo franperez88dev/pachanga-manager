@@ -17,6 +17,7 @@ ACCIONES_ADMIN = [
     ("post", "/api/admin/reportes/{rid}/descartar"),
     ("get", "/api/admin/multas"),
     ("put", "/api/admin/multas/{mid}"),
+    ("get", "/api/partidos/opciones-pago"),
     ("post", "/api/partidos"),
     ("patch", "/api/partidos/{pid}"),
     ("delete", "/api/partidos/{pid}"),
@@ -92,6 +93,14 @@ def test_cada_jugador_solo_ve_sus_multas(client, plantilla, escenario):
     mias = client.get("/api/multas/mias", headers=multado.headers).get_json()["multas"]
     assert [m["id"] for m in mias] == [escenario["mid"]]
     assert client.get("/api/multas/mias", headers=otro.headers).get_json()["multas"] == []
+
+
+def test_nadie_avisa_del_pago_de_una_multa_ajena(client, plantilla, escenario):
+    url = f"/api/multas/{escenario['mid']}/aviso-pago"
+    assert client.post(url, headers=plantilla[2].headers).status_code == 404
+    assert client.delete(url, headers=plantilla[2].headers).status_code == 404
+    assert client.post(url).status_code == 401
+    assert client.post(url, headers=plantilla[1].headers).status_code == 200  # la suya, sí
 
 
 def test_un_pendiente_de_aprobar_no_puede_reservar_hueco(client, admin, nuevo, partido_abierto):

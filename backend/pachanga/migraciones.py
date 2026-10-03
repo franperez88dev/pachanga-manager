@@ -9,10 +9,16 @@ from sqlalchemy import inspect, text
 
 from .extensions import db
 
-# (tabla, columna, tipo SQL). Las columnas nuevas se añaden vacías (NULL).
+# (tabla, columna, tipo SQL). Las columnas nuevas se añaden vacías (NULL), salvo que el tipo
+# diga otra cosa con DEFAULT.
 COLUMNAS_NUEVAS = [
     ("partidos", "info_pago", "VARCHAR(200)"),
     ("convocados", "apuntado", "DATETIME"),
+    ("partidos", "pago_a", "VARCHAR(30)"),
+    ("partidos", "precio_anticipado", "INTEGER"),
+    ("partidos", "precio_dia", "INTEGER"),
+    ("multas", "importe_centimos", "INTEGER NOT NULL DEFAULT 0"),
+    ("multas", "aviso_pago", "DATETIME"),
 ]
 
 

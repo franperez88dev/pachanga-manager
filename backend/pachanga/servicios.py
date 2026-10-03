@@ -224,6 +224,41 @@ def borrar_usuario(usuario):
     db.session.commit()
 
 
+# ------------------------------------------------------------ precio del partido
+def euros(centimos):
+    """220 -> "2,2"   250 -> "2,5"   300 -> "3"   225 -> "2,25" (como se escribe en el grupo)."""
+    return f"{centimos / 100:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def texto_pago(partido):
+    """La frase del precio que ven todos, o None si el partido no tiene precio."""
+    if not partido.pago_a:
+        return partido.info_pago  # partidos de la primera versión, con texto libre
+    precios = []
+    if partido.precio_anticipado is not None:
+        precios.append(f"{euros(partido.precio_anticipado)} € anticipado")
+    if partido.precio_dia is not None:
+        precios.append(f"{euros(partido.precio_dia)} € el día del partido")
+    return f"Pagar a {partido.pago_a}" + (f" ({' | '.join(precios)})" if precios else "")
+
+
+def opciones_de_pago():
+    """Lo que ofrecen los desplegables del admin: lo habitual (config) más todo lo que ya se
+    haya usado en algún partido. Así, lo que se añade con "Añadir otro" queda para la próxima vez."""
+    cfg = current_app.config
+    cobradores = list(cfg["COBRADORES_HABITUALES"])
+    precios = set(cfg["PRECIOS_HABITUALES_CENTIMOS"])
+    for nombre, anticipado, dia in db.session.query(Match.pago_a, Match.precio_anticipado, Match.precio_dia):
+        if nombre and nombre.casefold() not in {c.casefold() for c in cobradores}:
+            cobradores.append(nombre)
+        precios.update(p for p in (anticipado, dia) if p is not None)
+    return {"cobradores": cobradores, "precios": sorted(precios)}
+
+
+def motes_de_admins():
+    return {u.mote_normalizado for u in User.query.filter_by(rol=ROL_ADMIN, estado=ESTADO_APROBADO)}
+
+
 # ------------------------------------------------------------ horarios y multas
 def ahora_local():
     """La hora actual en España, sin zona: en el mismo formato en que se guarda la fecha de los
@@ -241,7 +276,8 @@ def lleva_multa(partido):
 
 
 def poner_multa(partido, usuario_id, motivo):
-    multa = Multa(match_id=partido.id, user_id=usuario_id, motivo=motivo)
+    multa = Multa(match_id=partido.id, user_id=usuario_id, motivo=motivo,
+                  importe_centimos=current_app.config["MULTA_INICIAL_CENTIMOS"])
     db.session.add(multa)
     return multa
 

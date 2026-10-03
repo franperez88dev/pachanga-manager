@@ -1,5 +1,5 @@
 """Panel de admin: altas, admins, confirmar goles, multas y PIN nuevo para quien lo olvide."""
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
 from ..errores import ErrorApi
 from ..extensions import db
@@ -7,12 +7,12 @@ from ..models import (
     ESTADO_APROBADO, ESTADO_PENDIENTE, MULTA_PAGADA, MULTA_PENDIENTE, MULTA_PERDONADA, REPORTE_CONFIRMADO,
     REPORTE_DESCARTADO, REPORTE_PENDIENTE, ROL_ADMIN, ROL_JUGADOR, Multa, StatReport, User,
 )
-from ..serializadores import multa, reporte, usuario_admin
+from ..serializadores import multa_admin, reporte, usuario_admin
 from ..seguridad import requiere_admin
 from ..servicios import (
-    con_reporte, exceso_marcador, numero_admins, regenerar_pin, stats_confirmadas_del_partido,
+    con_reporte, exceso_marcador, motes_de_admins, numero_admins, regenerar_pin, stats_confirmadas_del_partido,
 )
-from . import cuerpo_json
+from . import cuerpo_json, entero
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -132,25 +132,43 @@ def descartar(rid):
 
 
 # ------------------------------------------------------------ multas
+MAX_MULTA_CENTIMOS = 10000  # 100 €
+PASO_MULTA_CENTIMOS = 10
+
+
 @bp.get("/multas")
 @requiere_admin
 def multas():
     """Todas las multas, las más recientes primero (la app las separa en pendientes y resueltas)."""
     ms = Multa.query.order_by(Multa.fecha.desc(), Multa.id.desc()).all()
-    return jsonify(multas=[multa(m) for m in ms])
+    admins = motes_de_admins()
+    return jsonify(multas=[multa_admin(m, g.usuario, admins) for m in ms])
 
 
 @bp.put("/multas/<int:mid>")
 @requiere_admin
-def resolver_multa(mid):
-    """{"estado": "pagada" | "perdonada" | "pendiente"}. Volver a "pendiente" sirve para
-    deshacer un toque equivocado."""
-    estado = cuerpo_json().get("estado")
-    if estado not in (MULTA_PAGADA, MULTA_PERDONADA, MULTA_PENDIENTE):
-        raise ErrorApi(400, "El estado debe ser 'pagada', 'perdonada' o 'pendiente'")
+def cambiar_multa(mid):
+    """Uno o los dos campos:
+    {"estado": "pagada" | "perdonada" | "pendiente"}  ("pendiente" deshace un toque equivocado)
+    {"importe_centimos": 30}                          (de 10 en 10 céntimos; solo si está pendiente)"""
+    datos = cuerpo_json()
+    if "estado" not in datos and "importe_centimos" not in datos:
+        raise ErrorApi(400, "Indica 'estado' o 'importe_centimos'")
     m = db.session.get(Multa, mid)
     if m is None:
         raise ErrorApi(404, "Multa no encontrada")
-    m.estado = estado
+
+    if "importe_centimos" in datos:
+        importe = entero(datos, "importe_centimos", 0, MAX_MULTA_CENTIMOS)
+        if importe % PASO_MULTA_CENTIMOS:
+            raise ErrorApi(400, f"El importe va de {PASO_MULTA_CENTIMOS} en {PASO_MULTA_CENTIMOS} céntimos")
+        if m.estado != MULTA_PENDIENTE:
+            raise ErrorApi(409, "Solo se cambia el importe de una multa pendiente")
+        m.importe_centimos = importe
+    if "estado" in datos:
+        if datos["estado"] not in (MULTA_PAGADA, MULTA_PERDONADA, MULTA_PENDIENTE):
+            raise ErrorApi(400, "El estado debe ser 'pagada', 'perdonada' o 'pendiente'")
+        m.estado = datos["estado"]
+        m.aviso_pago = None  # el aviso del jugador ya está atendido (o, al deshacer, se empieza de nuevo)
     db.session.commit()
-    return jsonify(multa=multa(m))
+    return jsonify(multa=multa_admin(m, g.usuario, motes_de_admins()))

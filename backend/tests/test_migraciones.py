@@ -69,3 +69,40 @@ def test_una_base_de_datos_antigua_se_actualiza_sola_sin_perder_datos(tmp_path):
         assert db.session.get(Match, 2).lugar == "Pista nueva"
         db.session.remove()
         db.engine.dispose()
+
+
+# La base de datos tal como quedó con la versión 0.2.0: ya tenía multas (sin importe ni aviso)
+# y el precio era solo un texto libre
+ESQUEMA_0_2_0 = """
+CREATE TABLE partidos (
+    id INTEGER NOT NULL PRIMARY KEY, fecha DATETIME NOT NULL, lugar VARCHAR(80) NOT NULL,
+    estado VARCHAR(10) NOT NULL, equipos_generados BOOLEAN NOT NULL, num_repartos INTEGER NOT NULL,
+    fuerza_blanco FLOAT, fuerza_negro FLOAT, goles_blanco INTEGER, goles_negro INTEGER,
+    creado DATETIME NOT NULL, info_pago VARCHAR(200));
+CREATE TABLE multas (
+    id INTEGER NOT NULL PRIMARY KEY, user_id INTEGER NOT NULL, match_id INTEGER NOT NULL,
+    motivo VARCHAR(120) NOT NULL, estado VARCHAR(10) NOT NULL, fecha DATETIME NOT NULL);
+INSERT INTO partidos VALUES (1, '2040-06-02 19:00:00.000000', 'Pista', 'abierto', 0, 0,
+                             NULL, NULL, NULL, NULL, '2026-10-03 10:00:00.000000', 'Pagar a Feragi (2,2 €)');
+INSERT INTO multas VALUES (1, 1, 1, 'Hueco liberado tarde', 'pendiente', '2026-10-03 12:00:00.000000');
+"""
+
+
+def test_la_version_0_2_0_se_actualiza_y_conserva_precio_y_multas(tmp_path):
+    ruta = tmp_path / "v020.db"
+    with sqlite3.connect(ruta) as con:
+        con.executescript(ESQUEMA_0_2_0)
+
+    app = create_app({"TESTING": True, "SECRET_KEY": "clave-de-test", "PIN_HASH_METODO": "pbkdf2:sha256:1000",
+                      "SQLALCHEMY_DATABASE_URI": f"sqlite:///{ruta.as_posix()}"})
+    assert {"pago_a", "precio_anticipado", "precio_dia"} <= set(columnas(ruta, "partidos"))
+    assert {"importe_centimos", "aviso_pago"} <= set(columnas(ruta, "multas"))
+
+    with app.app_context():
+        from pachanga.servicios import texto_pago
+        partido, multa = db.session.get(Match, 1), db.session.get(Multa, 1)
+        assert partido.pago_a is None and texto_pago(partido) == "Pagar a Feragi (2,2 €)"  # el texto de antes se sigue viendo
+        assert (multa.motivo, multa.estado, multa.importe_centimos, multa.aviso_pago) == (
+            "Hueco liberado tarde", "pendiente", 0, None)
+        db.session.remove()
+        db.engine.dispose()

@@ -33,7 +33,7 @@ from ..serializadores import partido_detalle, partido_resumen, reporte, usuario_
 from ..seguridad import requiere_admin, requiere_aprobado
 from ..servicios import (
     avisos_marcador, con_reporte, deshacer_equipos, exceso_marcador, fuerzas_de, lleva_multa,
-    poner_multa, stats_confirmadas_del_partido,
+    opciones_de_pago, poner_multa, stats_confirmadas_del_partido,
 )
 from . import cuerpo_json, entero
 
@@ -44,6 +44,7 @@ MAX_GOLES_EQUIPO = 99
 CAMPOS_STATS = ("goles", "gpp", "asistencias")
 # De momento la app no usa asistencias (ver DECISIONES.md): son opcionales y valen 0 si no llegan.
 CAMPOS_OPCIONALES = ("gpp", "asistencias")
+MAX_PRECIO_CENTIMOS = 10000  # 100 €
 
 
 def leer_stats(datos):
@@ -69,8 +70,9 @@ def exigir_cerrado(partido):
 
 
 def leer_datos_partido(datos, parcial=False):
-    """Valida 'fecha' (formato 2026-10-04T19:00), 'lugar' e 'info_pago' (texto libre del precio,
-    opcional). Con parcial=True solo se tocan los campos que vengan."""
+    """Valida 'fecha' (formato 2026-10-04T19:00), 'lugar' y el precio, que es opcional:
+    'pago_a' (a quién se paga) y 'precio_anticipado' / 'precio_dia' (en céntimos).
+    Con parcial=True solo se tocan los campos que vengan."""
     cambios = {}
     if "fecha" in datos or not parcial:
         try:
@@ -88,7 +90,22 @@ def leer_datos_partido(datos, parcial=False):
         if len(info) > 200:
             raise ErrorApi(400, "El texto del precio no puede pasar de 200 caracteres")
         cambios["info_pago"] = info or None
+    if "pago_a" in datos:
+        nombre = " ".join(str(datos.get("pago_a") or "").split())
+        if len(nombre) > 30:
+            raise ErrorApi(400, "El nombre de a quién se paga no puede pasar de 30 caracteres")
+        cambios["pago_a"] = nombre or None
+    for campo in ("precio_anticipado", "precio_dia"):
+        if campo in datos:
+            cambios[campo] = None if datos[campo] is None else entero(datos, campo, 0, MAX_PRECIO_CENTIMOS)
     return cambios
+
+
+def exigir_precio_completo(partido):
+    """Un precio sin decir a quién se paga no tiene sentido (y sin 'pago_a' se borran los precios)."""
+    if not partido.pago_a:
+        if partido.precio_anticipado is not None or partido.precio_dia is not None:
+            raise ErrorApi(400, "Para poner un precio hay que indicar a quién se paga")
 
 
 def leer_resultado(partido):
@@ -129,10 +146,18 @@ def detalle(pid):
 
 
 # ------------------------------------------------------------ crear y editar (admin)
+@bp.get("/opciones-pago")
+@requiere_admin
+def opciones_pago():
+    """Lo que salen en los desplegables del precio: {"cobradores": ["Feragi", ...], "precios": [220, 250]}."""
+    return jsonify(opciones_de_pago())
+
+
 @bp.post("")
 @requiere_admin
 def crear():
     partido = Match(**leer_datos_partido(cuerpo_json()))
+    exigir_precio_completo(partido)
     db.session.add(partido)
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario)), 201
@@ -141,11 +166,16 @@ def crear():
 @bp.patch("/<int:pid>")
 @requiere_admin
 def editar(pid):
-    """Cambiar fecha, lugar o el texto del precio mientras el partido esté abierto."""
+    """Cambiar fecha, lugar o el precio mientras el partido esté abierto."""
     partido = partido_o_404(pid)
     exigir_abierto(partido)
     for campo, valor in leer_datos_partido(cuerpo_json(), parcial=True).items():
         setattr(partido, campo, valor)
+    try:
+        exigir_precio_completo(partido)
+    except ErrorApi:
+        db.session.rollback()
+        raise
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario))
 

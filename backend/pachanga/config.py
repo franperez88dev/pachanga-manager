@@ -15,6 +15,10 @@ def _booleano(nombre, defecto="0"):
 ORIGENES_DESARROLLO = [r"http://localhost(:\d+)?", r"http://127\.0\.0\.1(:\d+)?"]
 
 
+def _lista(nombre, defecto):
+    return [x.strip() for x in os.environ.get(nombre, defecto).split(",") if x.strip()]
+
+
 def cargar_config():
     """Devuelve la configuración como diccionario. Se llama al crear la app,
     no al importar el módulo, para que el .env ya esté cargado."""
@@ -61,6 +65,12 @@ def cargar_config():
         "ZONA_HORARIA": os.environ.get("ZONA_HORARIA", "Europe/Madrid"),
         # Liberar el hueco con menos de estas horas para el partido lleva multa
         "HORAS_SIN_MULTA": _entero("HORAS_SIN_MULTA", 24),
+        # Importe con el que nace una multa, en céntimos (luego el admin lo sube o lo baja de 10 en 10)
+        "MULTA_INICIAL_CENTIMOS": _entero("MULTA_INICIAL_CENTIMOS", 0),
+
+        # --- Precio del partido: lo que sale en los desplegables del admin, además de lo ya usado ---
+        "COBRADORES_HABITUALES": _lista("COBRADORES_HABITUALES", "Feragi,Ortega"),
+        "PRECIOS_HABITUALES_CENTIMOS": [int(x) for x in _lista("PRECIOS_HABITUALES_CENTIMOS", "220,250")],
 
         # --- Equipos (ver equipos.py) ---
         "TOLERANCIA_REBARAJAR": float(os.environ.get("TOLERANCIA_REBARAJAR", "0.5")),

@@ -236,8 +236,133 @@ def test_borrar_el_partido_borra_sus_multas(client, admin, plantilla, partido_en
     assert Multa.query.count() == 0
 
 
-# ------------------------------------------------------------ texto del precio
-def test_el_admin_pone_y_cambia_el_texto_del_precio(client, admin, plantilla):
+# ------------------------------------------------------------ importe de la multa y "ya la he pagado"
+@pytest.fixture
+def multa_de_feragi(client, admin, plantilla, partido_en, apuntar):
+    """Feragi libera su hueco a 3 horas del partido (que cobra Fran, el admin). Devuelve el id de la multa."""
+    pid = partido_en(3)
+    client.patch(f"/api/partidos/{pid}", json={"pago_a": "fran", "precio_anticipado": 220, "precio_dia": 250},
+                 headers=admin.headers)
+    apuntar(pid, plantilla[:10])
+    client.delete(f"/api/partidos/{pid}/hueco", headers=plantilla[0].headers)
+    return client.get("/api/multas/mias", headers=plantilla[0].headers).get_json()["multas"][0]["id"]
+
+
+def test_el_admin_sube_y_baja_el_importe_de_10_en_10(client, admin, plantilla, multa_de_feragi):
+    mid = multa_de_feragi
+
+    def poner(**datos):
+        return client.put(f"/api/admin/multas/{mid}", json=datos, headers=admin.headers)
+
+    assert client.get("/api/multas/mias", headers=plantilla[0].headers).get_json()["multas"][0]["importe_centimos"] == 0
+    assert poner(importe_centimos=10).get_json()["multa"]["importe_centimos"] == 10
+    assert poner(importe_centimos=50).get_json()["multa"]["importe_centimos"] == 50
+    for malo in (-10, 15, "30", 3.5, True, None, 10010):
+        assert poner(importe_centimos=malo).status_code == 400, malo
+    assert poner().status_code == 400  # ni estado ni importe
+    # El jugador ve lo que debe y a quién
+    suya = client.get("/api/multas/mias", headers=plantilla[0].headers).get_json()["multas"][0]
+    assert (suya["importe_centimos"], suya["cobrador"], suya["estado"]) == (50, "fran", "pendiente")
+    # Se pueden cambiar importe y estado a la vez; resuelta, el importe ya no se toca
+    r = poner(importe_centimos=60, estado="pagada").get_json()["multa"]
+    assert (r["importe_centimos"], r["estado"]) == (60, "pagada")
+    assert poner(importe_centimos=70).status_code == 409
+
+
+def test_importe_inicial_configurable(app, client, admin, plantilla, partido_en, apuntar):
+    app.config["MULTA_INICIAL_CENTIMOS"] = 50
+    pid = partido_en(3)
+    apuntar(pid, plantilla[:10])
+    client.delete(f"/api/partidos/{pid}/hueco", headers=plantilla[0].headers)
+    assert client.get("/api/multas/mias", headers=plantilla[0].headers).get_json()["multas"][0]["importe_centimos"] == 50
+
+
+def test_el_jugador_avisa_de_que_ha_pagado_y_el_admin_lo_confirma(client, admin, plantilla, multa_de_feragi):
+    mid, feragi = multa_de_feragi, plantilla[0]
+    url = f"/api/multas/{mid}/aviso-pago"
+
+    def del_admin():
+        return client.get("/api/admin/multas", headers=admin.headers).get_json()["multas"][0]
+
+    assert del_admin()["aviso_pago"] is False
+    r = client.post(url, headers=feragi.headers)
+    assert r.status_code == 200 and r.get_json()["multa"]["aviso_pago"] is True
+    assert r.get_json()["multa"]["estado"] == "pendiente"  # avisar no la da por pagada
+    assert client.post(url, headers=feragi.headers).status_code == 200  # repetir no rompe nada
+    assert del_admin()["aviso_pago"] is True
+    # Se puede retirar el aviso (por si pulsó sin querer) y volver a darlo
+    assert client.delete(url, headers=feragi.headers).get_json()["multa"]["aviso_pago"] is False
+    assert del_admin()["aviso_pago"] is False
+    client.post(url, headers=feragi.headers)
+    # El admin la da por pagada: el aviso queda atendido y el jugador ya no puede tocarlo
+    r = client.put(f"/api/admin/multas/{mid}", json={"estado": "pagada"}, headers=admin.headers)
+    assert (r.get_json()["multa"]["estado"], r.get_json()["multa"]["aviso_pago"]) == ("pagada", False)
+    assert client.post(url, headers=feragi.headers).status_code == 409
+    assert client.delete(url, headers=feragi.headers).status_code == 409
+
+
+def test_el_aviso_le_toca_al_admin_que_cobra_ese_partido(client, admin, plantilla, nuevo, multa_de_feragi):
+    """El partido lo cobra "fran" (el admin Fran, da igual mayúsculas). A otro admin no le toca."""
+    otro = nuevo("Ortega", admin=True)
+
+    def me_toca(quien):
+        return client.get("/api/admin/multas", headers=quien.headers).get_json()["multas"][0]["me_toca"]
+
+    assert me_toca(admin) is True and me_toca(otro) is False
+    # Si quien cobra no es ningún admin (o el partido no lo dice), les toca a todos
+    pid = client.get("/api/admin/multas", headers=admin.headers).get_json()["multas"][0]["partido"]["id"]
+    client.patch(f"/api/partidos/{pid}", json={"pago_a": "El del bar"}, headers=admin.headers)
+    assert me_toca(admin) is True and me_toca(otro) is True
+    client.patch(f"/api/partidos/{pid}", json={"pago_a": None, "precio_anticipado": None, "precio_dia": None},
+                 headers=admin.headers)
+    assert me_toca(admin) is True and me_toca(otro) is True
+
+
+# ------------------------------------------------------------ precio del partido
+def test_precio_con_cobrador_y_dos_precios(client, admin, plantilla):
+    r = client.post("/api/partidos", headers=admin.headers, json={
+        "fecha": "2040-06-02T19:00", "lugar": "Pista", "pago_a": "  Feragi ", "precio_anticipado": 220, "precio_dia": 250})
+    p = r.get_json()["partido"]
+    assert r.status_code == 201
+    assert (p["pago_a"], p["precio_anticipado"], p["precio_dia"]) == ("Feragi", 220, 250)
+    assert p["info_pago"] == "Pagar a Feragi (2,2 € anticipado | 2,5 € el día del partido)"
+    # Lo ve cualquier jugador
+    assert ver(client, p["id"], plantilla[0])["info_pago"] == p["info_pago"]
+
+    def editar(**cambios):
+        return client.patch(f"/api/partidos/{p['id']}", json=cambios, headers=admin.headers)
+
+    assert editar(pago_a="Ortega", precio_anticipado=300, precio_dia=325).get_json()["partido"]["info_pago"] == (
+        "Pagar a Ortega (3 € anticipado | 3,25 € el día del partido)")
+    assert editar(lugar="Otra").get_json()["partido"]["pago_a"] == "Ortega"  # no se pierde al editar otra cosa
+    for malo in (-1, 10001, "2,5", 2.5, True):
+        assert editar(precio_dia=malo).status_code == 400, malo
+    assert editar(pago_a="x" * 31).status_code == 400
+    # Un precio sin decir a quién se paga no vale (y no se guarda a medias)
+    assert editar(pago_a="").status_code == 400
+    assert ver(client, p["id"], admin)["pago_a"] == "Ortega"
+    # Quitar el precio entero sí
+    sin = editar(pago_a=None, precio_anticipado=None, precio_dia=None).get_json()["partido"]
+    assert sin["info_pago"] is None and sin["pago_a"] is None
+    assert client.post("/api/partidos", headers=admin.headers, json={
+        "fecha": "2040-06-02T19:00", "lugar": "Pista", "precio_dia": 250}).status_code == 400
+
+
+def test_los_desplegables_recuerdan_lo_que_se_ha_usado(client, admin):
+    def opciones():
+        return client.get("/api/partidos/opciones-pago", headers=admin.headers).get_json()
+
+    assert opciones() == {"cobradores": ["Feragi", "Ortega"], "precios": [220, 250]}
+    client.post("/api/partidos", headers=admin.headers, json={
+        "fecha": "2040-06-02T19:00", "lugar": "Pista", "pago_a": "Fran", "precio_anticipado": 300, "precio_dia": 250})
+    client.post("/api/partidos", headers=admin.headers, json={
+        "fecha": "2040-06-09T19:00", "lugar": "Pista", "pago_a": "feragi", "precio_anticipado": 200, "precio_dia": 220})
+    # "Fran" y los precios nuevos se quedan; "feragi" no se repite por ir en minúsculas
+    assert opciones() == {"cobradores": ["Feragi", "Ortega", "Fran"], "precios": [200, 220, 250, 300]}
+
+
+# ------------------------------------------------------------ texto libre del precio (primera versión)
+def test_el_texto_libre_del_precio_sigue_funcionando(client, admin, plantilla):
     texto = "Pagar a Feragi (2,2 € anticipado | 2,5 € el día del partido)"
     r = client.post("/api/partidos", json={"fecha": "2040-06-02T19:00", "lugar": "Pista", "info_pago": texto},
                     headers=admin.headers)
@@ -254,6 +379,10 @@ def test_el_admin_pone_y_cambia_el_texto_del_precio(client, admin, plantilla):
     assert editar(info_pago="3 € por cabeza").get_json()["partido"]["info_pago"] == "3 € por cabeza"
     assert editar(lugar="Otra pista").get_json()["partido"]["info_pago"] == "3 € por cabeza"  # no se pierde
     assert editar(info_pago="x" * 201).status_code == 400
+    # Si el partido pasa a tener el precio "por piezas", ese manda sobre el texto libre
+    assert editar(pago_a="Ortega", precio_anticipado=200, precio_dia=None).get_json()["partido"]["info_pago"] == (
+        "Pagar a Ortega (2 € anticipado)")
+    editar(pago_a=None, precio_anticipado=None)
     assert editar(info_pago="   ").get_json()["partido"]["info_pago"] is None  # vacío = sin texto
 
 
