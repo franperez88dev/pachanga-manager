@@ -12,7 +12,7 @@ export function EstadoMulta({ estado }) {
   return <span className={`etiqueta-estado ${clase}`}>{texto}</span>;
 }
 
-// "Partido del sáb, 4 oct · 19:00 — Liberó su hueco con menos de 24 horas…"
+// "Partido del sáb, 4 oct · 19:00 — Hueco liberado con menos de 24 horas…"
 export function TextoMulta({ multa }) {
   return (
     <>

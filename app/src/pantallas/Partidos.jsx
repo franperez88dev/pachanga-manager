@@ -29,7 +29,7 @@ export default function Partidos() {
         {usuario.es_admin && !creando && <button className="btn btn-primario" onClick={() => setCreando(true)}>+ Nuevo</button>}
       </div>
       {creando && (
-        <FormularioPartido sugerido={{ lugar: anterior?.lugar, info_pago: anterior?.info_pago }}
+        <FormularioPartido sugerido={anterior ?? {}}
           alGuardar={alCrear} alCancelar={() => setCreando(false)} />
       )}
       {cargando && !datos ? <Cargando /> : error ? <MensajeError mensaje={error} reintentar={recargar} /> :

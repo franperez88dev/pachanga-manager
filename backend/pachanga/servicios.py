@@ -255,6 +255,14 @@ def opciones_de_pago():
     return {"cobradores": cobradores, "precios": sorted(precios)}
 
 
+def nombre_de_cobrador(nombre):
+    """"fran" y "Fran" son la misma persona: si el nombre ya se ha usado (o es el mote de un jugador),
+    se guarda escrito como ya estaba, para que no salga dos veces en el desplegable."""
+    conocidos = {u.mote_normalizado: u.mote for u in User.query.filter_by(estado=ESTADO_APROBADO)}
+    conocidos.update({c.casefold(): c for c in opciones_de_pago()["cobradores"]})
+    return conocidos.get(nombre.casefold(), nombre)
+
+
 def motes_de_admins():
     return {u.mote_normalizado for u in User.query.filter_by(rol=ROL_ADMIN, estado=ESTADO_APROBADO)}
 

@@ -1,14 +1,15 @@
 // Panel de admin con sub-pestañas (rutas anidadas: #/admin/altas, #/admin/goles...)
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { NavLink, Outlet } from "react-router";
 import { api } from "../api";
 import { useAvisar } from "../avisos";
 import Avatar from "../componentes/avatar/Avatar";
 import BotonConfirmar from "../componentes/BotonConfirmar";
+import Contador from "../componentes/Contador";
 import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
 import { EstadoMulta } from "../componentes/Multas";
 import { MOSTRAR_ASISTENCIAS } from "../config";
-import { fechaPartido, plural } from "../formato";
+import { dinero, fechaPartido, plural } from "../formato";
 import { useCarga } from "../hooks/useCarga";
 import { useSesion } from "../sesion";
 
@@ -118,6 +119,9 @@ export function GolesPendientes() {
 export function MultasAdmin() {
   const avisar = useAvisar();
   const carga = useCarga("/api/admin/multas");
+  // useRef guarda un valor que sobrevive entre repintados SIN provocar uno nuevo. Aquí, la "cola"
+  // de envíos: si tocas + varias veces seguidas, cada cambio espera a que termine el anterior.
+  const cola = useRef(Promise.resolve());
 
   async function poner(multa, estado) {
     try {
@@ -129,6 +133,14 @@ export function MultasAdmin() {
     }
   }
 
+  function cambiarImporte(multa, importe) {
+    // Primero se cambia en pantalla (para que el botón responda al momento) y luego se guarda
+    carga.poner({ multas: carga.datos.multas.map((m) => (m.id === multa.id ? { ...m, importe_centimos: importe } : m)) });
+    cola.current = cola.current
+      .then(() => api.put(`/api/admin/multas/${multa.id}`, { importe_centimos: importe }))
+      .catch((e) => { avisar(e.message); carga.recargar(); });
+  }
+
   const fila = (m) => (
     <div key={m.id} className="fila-lista fila-pena">
       <Avatar avatar={m.jugador.avatar} tam={42} />
@@ -136,17 +148,28 @@ export function MultasAdmin() {
         <div className="fuerte">{m.jugador.mote} <EstadoMulta estado={m.estado} /></div>
         <div className="nota">Partido del {fechaPartido(m.partido.fecha, true).toLowerCase()}</div>
         <div className="nota nota-larga">{m.motivo}</div>
+        {m.estado !== "pendiente" && m.importe_centimos > 0 && <div className="nota">Importe: {dinero(m.importe_centimos)}</div>}
       </div>
-      <div className="acciones-fila">
-        {m.estado === "pendiente" ? (
-          <>
+      {m.estado === "pendiente" && m.aviso_pago && (
+        <div className="banner banner-verde aviso-pago">
+          💬 <b>{m.jugador.mote}</b> dice que ya la ha pagado.{" "}
+          {m.me_toca ? "Si es así, pulsa «Pagada»." : `Le toca confirmarlo a ${m.cobrador}.`}
+        </div>
+      )}
+      {m.estado === "pendiente" ? (
+        <div className="multa-pie">
+          <Contador className="contador-dinero" valor={m.importe_centimos} paso={10} max={10000} formato={dinero}
+            etiqueta={`10 céntimos a la multa de ${m.jugador.mote}`} onChange={(importe) => cambiarImporte(m, importe)} />
+          <div className="acciones-fila">
             <BotonConfirmar peligro={false} pregunta="¿Perdonarla?" onConfirmar={() => poner(m, "perdonada")}>Perdonar</BotonConfirmar>
             <button className="btn btn-primario" onClick={() => poner(m, "pagada")}>Pagada</button>
-          </>
-        ) : (
+          </div>
+        </div>
+      ) : (
+        <div className="acciones-fila">
           <button className="btn btn-suave" onClick={() => poner(m, "pendiente")}>Deshacer</button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 
@@ -154,12 +177,15 @@ export function MultasAdmin() {
     <ConDatos carga={carga}>
       {({ multas }) => {
         if (multas.length === 0) return <Vacio>Nadie tiene multas. ¡Qué peña más formal! 👏</Vacio>;
-        const pendientes = multas.filter((m) => m.estado === "pendiente");
+        // Arriba, las que alguien dice haber pagado y me toca confirmar a mí
+        const urgente = (m) => (m.aviso_pago && m.me_toca ? 0 : 1);
+        const pendientes = multas.filter((m) => m.estado === "pendiente").sort((x, y) => urgente(x) - urgente(y));
         const resueltas = multas.filter((m) => m.estado !== "pendiente");
         return (
           <div className="lista">
             <p className="nota">
               Se ponen solas cuando alguien libera su hueco con menos de 24 horas, o cuando quitas a alguien "con multa".
+              Con − y + pones el importe (de 10 en 10 céntimos) y lo vas subiendo si pasan los días sin pagar.
             </p>
             {pendientes.length === 0 && <p className="nota centrado">No hay ninguna pendiente 👌</p>}
             {pendientes.map(fila)}

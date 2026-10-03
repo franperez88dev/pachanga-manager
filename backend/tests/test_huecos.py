@@ -262,7 +262,7 @@ def test_el_admin_sube_y_baja_el_importe_de_10_en_10(client, admin, plantilla, m
     assert poner().status_code == 400  # ni estado ni importe
     # El jugador ve lo que debe y a quién
     suya = client.get("/api/multas/mias", headers=plantilla[0].headers).get_json()["multas"][0]
-    assert (suya["importe_centimos"], suya["cobrador"], suya["estado"]) == (50, "fran", "pendiente")
+    assert (suya["importe_centimos"], suya["cobrador"], suya["estado"]) == (50, "Fran", "pendiente")
     # Se pueden cambiar importe y estado a la vez; resuelta, el importe ya no se toca
     r = poner(importe_centimos=60, estado="pagada").get_json()["multa"]
     assert (r["importe_centimos"], r["estado"]) == (60, "pagada")
@@ -302,7 +302,7 @@ def test_el_jugador_avisa_de_que_ha_pagado_y_el_admin_lo_confirma(client, admin,
 
 
 def test_el_aviso_le_toca_al_admin_que_cobra_ese_partido(client, admin, plantilla, nuevo, multa_de_feragi):
-    """El partido lo cobra "fran" (el admin Fran, da igual mayúsculas). A otro admin no le toca."""
+    """El partido lo cobra Fran, que es admin. A otro admin no le toca."""
     otro = nuevo("Ortega", admin=True)
 
     def me_toca(quien):
@@ -354,9 +354,10 @@ def test_los_desplegables_recuerdan_lo_que_se_ha_usado(client, admin):
 
     assert opciones() == {"cobradores": ["Feragi", "Ortega"], "precios": [220, 250]}
     client.post("/api/partidos", headers=admin.headers, json={
-        "fecha": "2040-06-02T19:00", "lugar": "Pista", "pago_a": "Fran", "precio_anticipado": 300, "precio_dia": 250})
-    client.post("/api/partidos", headers=admin.headers, json={
+        "fecha": "2040-06-02T19:00", "lugar": "Pista", "pago_a": "fran", "precio_anticipado": 300, "precio_dia": 250})
+    r = client.post("/api/partidos", headers=admin.headers, json={
         "fecha": "2040-06-09T19:00", "lugar": "Pista", "pago_a": "feragi", "precio_anticipado": 200, "precio_dia": 220})
+    assert r.get_json()["partido"]["pago_a"] == "Feragi"  # se guarda como ya estaba escrito
     # "Fran" y los precios nuevos se quedan; "feragi" no se repite por ir en minúsculas
     assert opciones() == {"cobradores": ["Feragi", "Ortega", "Fran"], "precios": [200, 220, 250, 300]}
 

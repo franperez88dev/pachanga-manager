@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import Avatar from "../componentes/avatar/Avatar";
 import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
 import { TarjetaJugado, TarjetaProximo } from "../componentes/partido/TarjetasPartido";
-import { plural } from "../formato";
+import { dinero, plural } from "../formato";
 import { useCarga } from "../hooks/useCarga";
 import { useSesion } from "../sesion";
 
@@ -34,11 +34,14 @@ function TopGoleadores() {
 // Una línea de aviso, solo si tienes alguna multa sin pagar. Al pulsarla se abre tu perfil.
 function AvisoMultas() {
   const { datos } = useCarga("/api/multas/mias");
-  const pendientes = datos?.multas.filter((m) => m.estado === "pendiente").length ?? 0;
-  if (pendientes === 0) return null;
+  // Las que ya has dicho que has pagado no cuentan: están esperando a que el admin lo confirme
+  const pendientes = datos?.multas.filter((m) => m.estado === "pendiente" && !m.aviso_pago) ?? [];
+  if (pendientes.length === 0) return null;
+  const debes = pendientes.reduce((suma, m) => suma + m.importe_centimos, 0);
   return (
     <Link to="/perfil" className="banner banner-error enlace-tarjeta">
-      ⚠️ Tienes {plural(pendientes, "multa pendiente", "multas pendientes")} ›
+      ⚠️ Tienes {plural(pendientes.length, "multa pendiente", "multas pendientes")}
+      {debes > 0 && <> · debes {dinero(debes)}</>} ›
     </Link>
   );
 }

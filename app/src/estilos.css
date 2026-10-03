@@ -241,7 +241,13 @@ h1, h2, h3, h4 { margin: 0; }
   padding: 12px 13px; font-size: 16px; color: var(--texto); text-transform: none; letter-spacing: 0; font-weight: 500;
 }
 .campo:focus { outline: 2px solid var(--verde); outline-offset: 1px; border-color: var(--verde); }
-textarea.campo { resize: vertical; min-height: 64px; font-family: inherit; line-height: 1.35; }
+/* Precio del partido: "Pagar a [quién]", "[precio] anticipado", "[precio] el día del partido" */
+.campo-precio { display: flex; flex-direction: column; gap: 8px; }
+.linea-precio { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; }
+.linea-precio > span { flex: 0 0 auto; }
+.linea-precio .campo { flex: 1 1 110px; width: auto; min-width: 0; padding: 10px 11px; }
+/* Con el campo de "Añadir otro" abierto no caben los tres en una línea: el texto va en la suya */
+.linea-precio:has(input) > span { flex-basis: 100%; }
 select.campo { appearance: auto; }
 .campo-pin { font-size: 22px; letter-spacing: 8px; text-align: center; }
 .error-formulario { color: var(--peligro); font-weight: 600; margin: 0; font-size: 14px; }
@@ -310,6 +316,14 @@ select.campo { appearance: auto; }
 .fila-lista-texto .nota.nota-larga { white-space: normal; }
 .fila-pena { flex-wrap: wrap; }
 .fila-pena .acciones-fila { width: 100%; }
+/* Multas: importe a la izquierda y botones a la derecha, debajo del texto */
+.fila-pena .multa-pie {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.fila-pena .multa-pie .acciones-fila { width: auto; flex: 1; }
+.fila-pena .aviso-pago { width: 100%; padding: 9px 12px; font-size: 13.5px; }
+.importe-multa { font: 700 20px "Barlow Condensed", sans-serif; color: var(--peligro); font-variant-numeric: tabular-nums; }
+.contador-dinero span { min-width: 68px; }
 .etiquetas { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
 .etiqueta-estado {
   display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 100px; white-space: nowrap;

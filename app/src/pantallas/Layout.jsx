@@ -17,9 +17,11 @@ function usePendientesAdmin(esAdmin) {
   useEffect(() => {
     if (!esAdmin) return;
     let vigente = true;
-    // Al cambiar de pantalla, recontamos altas y goles por confirmar para el globito rojo
-    Promise.all([api.get("/api/admin/altas"), api.get("/api/admin/reportes")])
-      .then(([a, r]) => vigente && setPendientes(a.altas.length + r.reportes.length))
+    // Al cambiar de pantalla, recontamos para el globito rojo: altas, goles por confirmar y
+    // multas que un jugador dice haber pagado (solo las que me toca confirmar a mí)
+    Promise.all([api.get("/api/admin/altas"), api.get("/api/admin/reportes"), api.get("/api/admin/multas")])
+      .then(([a, r, m]) => vigente && setPendientes(
+        a.altas.length + r.reportes.length + m.multas.filter((x) => x.aviso_pago && x.me_toca).length))
       .catch(() => {});
     return () => { vigente = false; };
   }, [esAdmin, pathname]);

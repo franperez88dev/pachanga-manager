@@ -10,6 +10,7 @@ import BotonConfirmar from "../componentes/BotonConfirmar";
 import { Cargando, MensajeError } from "../componentes/Estados";
 import { EstadoMulta, TextoMulta } from "../componentes/Multas";
 import { MOSTRAR_ASISTENCIAS } from "../config";
+import { dinero } from "../formato";
 import { useCarga } from "../hooks/useCarga";
 import { useCatalogoAvatares } from "../hooks/useCatalogoAvatares";
 import { useSesion } from "../sesion";
@@ -76,20 +77,56 @@ function CambiarAvatar({ alTerminar }) {
 
 // Solo aparece si tienes (o has tenido) alguna multa. Nadie más ve las tuyas, salvo el admin.
 function MisMultas() {
-  const { datos } = useCarga("/api/multas/mias");
+  const avisar = useAvisar();
+  const { datos, poner } = useCarga("/api/multas/mias");
   if (!datos || datos.multas.length === 0) return null;
+
+  // avisar=true: "ya la he pagado" (le llega al admin). avisar=false: retirar ese aviso.
+  async function avisarPago(multa, avisarAdmin) {
+    try {
+      const ruta = `/api/multas/${multa.id}/aviso-pago`;
+      const respuesta = avisarAdmin ? await api.post(ruta) : await api.borrar(ruta);
+      poner({ multas: datos.multas.map((m) => (m.id === multa.id ? respuesta.multa : m)) });
+      avisar(avisarAdmin ? `Avisado. Falta que ${multa.cobrador ?? "el admin"} lo confirme` : "Aviso retirado");
+    } catch (e) {
+      avisar(e.message);
+    }
+  }
+
   return (
     <section id="multas">
       <h2 className="titulo-seccion">Mis multas</h2>
       <div className="lista">
         {datos.multas.map((m) => (
-          <div key={m.id} className="fila-lista">
+          <div key={m.id} className="fila-lista fila-pena">
             <div className="fila-lista-texto"><TextoMulta multa={m} /></div>
             <EstadoMulta estado={m.estado} />
+            {m.estado === "pendiente" && (
+              <div className="multa-pie">
+                <div>
+                  <div className="importe-multa">
+                    {m.importe_centimos > 0 ? `Debes ${dinero(m.importe_centimos)}` : "Importe por decidir"}
+                  </div>
+                  <div className="nota">
+                    {m.aviso_pago
+                      ? `Has avisado de que la has pagado. Falta que ${m.cobrador ?? "el admin"} lo confirme.`
+                      : m.cobrador ? `Se la pagas a ${m.cobrador}.` : "Pregunta al admin a quién se la pagas."}
+                  </div>
+                </div>
+                <div className="acciones-fila">
+                  {m.aviso_pago
+                    ? <button className="btn btn-suave" onClick={() => avisarPago(m, false)}>Retirar aviso</button>
+                    : <button className="btn btn-primario" onClick={() => avisarPago(m, true)}>✔ Multa pagada</button>}
+                </div>
+              </div>
+            )}
+            {m.estado !== "pendiente" && m.importe_centimos > 0 && (
+              <div className="nota multa-pie">Importe: {dinero(m.importe_centimos)}</div>
+            )}
           </div>
         ))}
       </div>
-      <p className="nota">Cuando la pagues, el admin la marcará como pagada.</p>
+      <p className="nota">Cuando pagues una, pulsa «Multa pagada»: le llega el aviso al admin, que la da por pagada.</p>
     </section>
   );
 }

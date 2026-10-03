@@ -33,7 +33,7 @@ from ..serializadores import partido_detalle, partido_resumen, reporte, usuario_
 from ..seguridad import requiere_admin, requiere_aprobado
 from ..servicios import (
     avisos_marcador, con_reporte, deshacer_equipos, exceso_marcador, fuerzas_de, lleva_multa,
-    opciones_de_pago, poner_multa, stats_confirmadas_del_partido,
+    nombre_de_cobrador, opciones_de_pago, poner_multa, stats_confirmadas_del_partido,
 )
 from . import cuerpo_json, entero
 
@@ -94,7 +94,7 @@ def leer_datos_partido(datos, parcial=False):
         nombre = " ".join(str(datos.get("pago_a") or "").split())
         if len(nombre) > 30:
             raise ErrorApi(400, "El nombre de a quién se paga no puede pasar de 30 caracteres")
-        cambios["pago_a"] = nombre or None
+        cambios["pago_a"] = nombre_de_cobrador(nombre) if nombre else None
     for campo in ("precio_anticipado", "precio_dia"):
         if campo in datos:
             cambios[campo] = None if datos[campo] is None else entero(datos, campo, 0, MAX_PRECIO_CENTIMOS)
