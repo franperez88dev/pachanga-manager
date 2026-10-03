@@ -8,6 +8,7 @@ import Avatar from "../componentes/avatar/Avatar";
 import EditorAvatar from "../componentes/avatar/EditorAvatar";
 import BotonConfirmar from "../componentes/BotonConfirmar";
 import { Cargando, MensajeError } from "../componentes/Estados";
+import { EstadoMulta, TextoMulta } from "../componentes/Multas";
 import { MOSTRAR_ASISTENCIAS } from "../config";
 import { useCarga } from "../hooks/useCarga";
 import { useCatalogoAvatares } from "../hooks/useCatalogoAvatares";
@@ -73,6 +74,26 @@ function CambiarAvatar({ alTerminar }) {
   );
 }
 
+// Solo aparece si tienes (o has tenido) alguna multa. Nadie más ve las tuyas, salvo el admin.
+function MisMultas() {
+  const { datos } = useCarga("/api/multas/mias");
+  if (!datos || datos.multas.length === 0) return null;
+  return (
+    <section id="multas">
+      <h2 className="titulo-seccion">Mis multas</h2>
+      <div className="lista">
+        {datos.multas.map((m) => (
+          <div key={m.id} className="fila-lista">
+            <div className="fila-lista-texto"><TextoMulta multa={m} /></div>
+            <EstadoMulta estado={m.estado} />
+          </div>
+        ))}
+      </div>
+      <p className="nota">Cuando la pagues, el admin la marcará como pagada.</p>
+    </section>
+  );
+}
+
 export function MiPerfil() {
   const { usuario, salir } = useSesion();
   const avisar = useAvisar();
@@ -98,11 +119,12 @@ export function MiPerfil() {
       {editando
         ? <CambiarAvatar alTerminar={() => setEditando(false)} />
         : <button className="btn btn-suave btn-ancho" onClick={() => setEditando(true)}>🎨 Cambiar avatar</button>}
+      <MisMultas />
       <button className="btn btn-suave btn-ancho" onClick={salir}>Cerrar sesión</button>
       <section className="zona-peligro">
         <h2 className="titulo-seccion">Borrar mi cuenta</h2>
         <p className="nota">
-          Se borran para siempre tu cuenta, tus valoraciones, tus goles y tus convocatorias. No se puede deshacer.
+          Se borran para siempre tu cuenta, tus valoraciones, tus goles, tus multas y tus huecos en los partidos. No se puede deshacer.
         </p>
         <BotonConfirmar pregunta="¿Seguro? Toca otra vez para borrar" onConfirmar={borrarCuenta} className="btn-ancho">
           Borrar mi cuenta

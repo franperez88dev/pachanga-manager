@@ -1,4 +1,4 @@
-// Para un convocado, con el partido ya cerrado: apuntar sus goles (y gpp) y ver cómo va el reporte
+// Para uno de los que jugaron, con el partido ya cerrado: apuntar sus goles (y gpp) y ver cómo va el reporte
 import { useState } from "react";
 import { api } from "../../api";
 import { useAvisar } from "../../avisos";

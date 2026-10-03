@@ -13,6 +13,7 @@ def web(tmp_path):
     (tmp_path / "assets" / "index-abc123.js").write_text("console.log('hola')", encoding="utf-8")
     (tmp_path / "favicon.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
     (tmp_path / "manifest.webmanifest").write_text("{}", encoding="utf-8")
+    (tmp_path / "tema.js").write_text("// tema claro u oscuro", encoding="utf-8")
     (tmp_path / "secreto.py").write_text("CLAVE = 1", encoding="utf-8")
     return tmp_path
 
@@ -40,6 +41,7 @@ def test_archivos_sueltos_permitidos_y_prohibidos(web):
     c = cliente(CARPETA_WEB=str(web))
     assert c.get("/favicon.svg").status_code == 200
     assert c.get("/manifest.webmanifest").status_code == 200
+    assert c.get("/tema.js").status_code == 200
     assert c.get("/secreto.py").status_code == 404      # extensión no permitida
     assert c.get("/no-existe.png").status_code == 404
     assert c.get("/assets/../secreto.py").status_code == 404  # no se puede salir de la carpeta

@@ -68,5 +68,6 @@ export const api = {
   get: (ruta, opciones) => peticion(ruta, opciones),
   post: (ruta, datos = {}) => peticion(ruta, { metodo: "POST", datos }),
   put: (ruta, datos = {}) => peticion(ruta, { metodo: "PUT", datos }),
+  patch: (ruta, datos = {}) => peticion(ruta, { metodo: "PATCH", datos }),
   borrar: (ruta, datos) => peticion(ruta, { metodo: "DELETE", datos }),
 };

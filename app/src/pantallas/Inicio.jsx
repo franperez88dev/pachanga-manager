@@ -31,6 +31,18 @@ function TopGoleadores() {
   );
 }
 
+// Una línea de aviso, solo si tienes alguna multa sin pagar. Al pulsarla se abre tu perfil.
+function AvisoMultas() {
+  const { datos } = useCarga("/api/multas/mias");
+  const pendientes = datos?.multas.filter((m) => m.estado === "pendiente").length ?? 0;
+  if (pendientes === 0) return null;
+  return (
+    <Link to="/perfil" className="banner banner-error enlace-tarjeta">
+      ⚠️ Tienes {plural(pendientes, "multa pendiente", "multas pendientes")} ›
+    </Link>
+  );
+}
+
 export default function Inicio() {
   const { usuario } = useSesion();
   const { datos, cargando, error, recargar } = useCarga("/api/partidos");
@@ -59,6 +71,7 @@ export default function Inicio() {
   return (
     <div className="pila">
       <h1 className="saludo">¡Hola, {usuario.mote}!</h1>
+      <AvisoMultas />
       <section>
         <h2 className="titulo-seccion">Próximo partido</h2>
         {proximos}

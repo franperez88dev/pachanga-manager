@@ -1,4 +1,4 @@
-// "¿Deseas una nueva selección de equipo?" para los convocados. Un voto por reparto.
+// "¿Deseas una nueva selección de equipo?" para los que juegan. Un voto por reparto.
 import { useState } from "react";
 import { api } from "../../api";
 import { useAvisar } from "../../avisos";

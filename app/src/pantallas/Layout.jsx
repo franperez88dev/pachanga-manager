@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { api } from "../api";
 import Avatar from "../componentes/avatar/Avatar";
+import BotonTema from "../componentes/BotonTema";
 import { IconoAdmin, IconoInicio, IconoPartidos, IconoPerfil, IconoTabla, IconoValorar } from "../componentes/Iconos";
 import { useSesion } from "../sesion";
 
@@ -51,9 +52,12 @@ export default function Layout() {
             <span className="marca-sub">La peña del fútbol de los amiguetes</span>
           </span>
         </Link>
-        <Link to="/perfil" className="mi-avatar" aria-label="Mi perfil">
-          <Avatar avatar={usuario.avatar} tam={38} />
-        </Link>
+        <div className="cabecera-derecha">
+          <BotonTema />
+          <Link to="/perfil" className="mi-avatar" aria-label="Mi perfil">
+            <Avatar avatar={usuario.avatar} tam={38} />
+          </Link>
+        </div>
       </header>
       <main className="contenido">
         <Outlet />

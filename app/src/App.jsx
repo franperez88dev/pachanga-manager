@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router";
 import { Cargando, MensajeError } from "./componentes/Estados";
-import Admin, { Altas, GolesPendientes, Pena } from "./pantallas/Admin";
+import Admin, { Altas, GolesPendientes, MultasAdmin, Pena } from "./pantallas/Admin";
 import Clasificacion from "./pantallas/Clasificacion";
 import Entrar from "./pantallas/Entrar";
 import EsperaAprobacion from "./pantallas/EsperaAprobacion";
@@ -37,6 +37,7 @@ export default function App() {
             <Route index element={<Navigate to="altas" replace />} />
             <Route path="altas" element={<Altas />} />
             <Route path="goles" element={<GolesPendientes />} />
+            <Route path="multas" element={<MultasAdmin />} />
             <Route path="pena" element={<Pena />} />
           </Route>
         )}

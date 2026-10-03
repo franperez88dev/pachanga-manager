@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, token } from "../api";
 import { avatarAleatorio, avatarParaEnviar } from "../componentes/avatar/aleatorio";
 import EditorAvatar from "../componentes/avatar/EditorAvatar";
+import BotonTema from "../componentes/BotonTema";
 import { Cargando, MensajeError } from "../componentes/Estados";
 import { useCatalogoAvatares } from "../hooks/useCatalogoAvatares";
 import { useSesion } from "../sesion";
@@ -126,6 +127,7 @@ export default function Entrar() {
 
   return (
     <div className="pantalla-acceso">
+      <BotonTema className="acceso-tema" />
       <div className="acceso-cabecera">
         <span className="insignia grande" aria-hidden="true">⚽</span>
         <h1 className="titulo-marca">Pachanga Manager</h1>

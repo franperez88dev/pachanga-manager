@@ -198,7 +198,7 @@ def liberar_hueco(pid):
 
     multado = juega(partido, g.usuario.id) and lleva_multa(partido)
     if multado:
-        poner_multa(partido, g.usuario.id, "Liberó su hueco con menos de 24 horas para el partido")
+        poner_multa(partido, g.usuario.id, "Hueco liberado con menos de 24 horas para el partido")
     partido.jugadores.remove(plaza)  # si había reservas, el primero pasa a estar entre los 10
     db.session.commit()
     return jsonify(partido=partido_detalle(partido, g.usuario), multa=multado)
@@ -236,7 +236,7 @@ def quitar_jugador(pid, uid):
         raise ErrorApi(404, "Ese jugador no está apuntado a este partido")
     jugaba = juega(partido, uid)
     if cuerpo_json().get("multa") is True:
-        poner_multa(partido, uid, "El admin lo quitó del partido con multa")
+        poner_multa(partido, uid, "Quitado del partido por el admin, con multa")
     partido.jugadores.remove(plaza)
     if jugaba and partido.equipos_generados:
         db.session.flush()

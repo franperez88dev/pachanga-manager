@@ -6,6 +6,7 @@ import { useAvisar } from "../avisos";
 import Avatar from "../componentes/avatar/Avatar";
 import BotonConfirmar from "../componentes/BotonConfirmar";
 import { Cargando, MensajeError, Vacio } from "../componentes/Estados";
+import { EstadoMulta } from "../componentes/Multas";
 import { MOSTRAR_ASISTENCIAS } from "../config";
 import { fechaPartido, plural } from "../formato";
 import { useCarga } from "../hooks/useCarga";
@@ -18,6 +19,7 @@ export default function Admin() {
       <nav className="segmentos" aria-label="Secciones del panel">
         <NavLink to="altas">Altas</NavLink>
         <NavLink to="goles">Goles</NavLink>
+        <NavLink to="multas">Multas</NavLink>
         <NavLink to="pena">Peña</NavLink>
       </nav>
       <Outlet />
@@ -109,6 +111,63 @@ export function GolesPendientes() {
           ))}
         </div>
       )}
+    </ConDatos>
+  );
+}
+
+export function MultasAdmin() {
+  const avisar = useAvisar();
+  const carga = useCarga("/api/admin/multas");
+
+  async function poner(multa, estado) {
+    try {
+      await api.put(`/api/admin/multas/${multa.id}`, { estado });
+      avisar({ pagada: "Multa pagada ✔", perdonada: "Multa perdonada", pendiente: "Vuelve a estar pendiente" }[estado]);
+      carga.recargar();
+    } catch (e) {
+      avisar(e.message);
+    }
+  }
+
+  const fila = (m) => (
+    <div key={m.id} className="fila-lista fila-pena">
+      <Avatar avatar={m.jugador.avatar} tam={42} />
+      <div className="fila-lista-texto">
+        <div className="fuerte">{m.jugador.mote} <EstadoMulta estado={m.estado} /></div>
+        <div className="nota">Partido del {fechaPartido(m.partido.fecha, true).toLowerCase()}</div>
+        <div className="nota nota-larga">{m.motivo}</div>
+      </div>
+      <div className="acciones-fila">
+        {m.estado === "pendiente" ? (
+          <>
+            <BotonConfirmar peligro={false} pregunta="¿Perdonarla?" onConfirmar={() => poner(m, "perdonada")}>Perdonar</BotonConfirmar>
+            <button className="btn btn-primario" onClick={() => poner(m, "pagada")}>Pagada</button>
+          </>
+        ) : (
+          <button className="btn btn-suave" onClick={() => poner(m, "pendiente")}>Deshacer</button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <ConDatos carga={carga}>
+      {({ multas }) => {
+        if (multas.length === 0) return <Vacio>Nadie tiene multas. ¡Qué peña más formal! 👏</Vacio>;
+        const pendientes = multas.filter((m) => m.estado === "pendiente");
+        const resueltas = multas.filter((m) => m.estado !== "pendiente");
+        return (
+          <div className="lista">
+            <p className="nota">
+              Se ponen solas cuando alguien libera su hueco con menos de 24 horas, o cuando quitas a alguien "con multa".
+            </p>
+            {pendientes.length === 0 && <p className="nota centrado">No hay ninguna pendiente 👌</p>}
+            {pendientes.map(fila)}
+            {resueltas.length > 0 && <h2 className="titulo-seccion">Ya resueltas</h2>}
+            {resueltas.map(fila)}
+          </div>
+        );
+      }}
     </ConDatos>
   );
 }

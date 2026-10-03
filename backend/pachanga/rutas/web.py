@@ -3,7 +3,7 @@
 La app de React y la API viven en el mismo servidor y dominio:
   /               -> index.html (la app)
   /assets/...     -> JavaScript, estilos, fuentes e imágenes compilados
-  /favicon.svg, /manifest.webmanifest, /icono-192.png...  -> archivos sueltos de app/public
+  /favicon.svg, /manifest.webmanifest, /tema.js...  -> archivos sueltos de app/public
   /api/...        -> la API (el resto de blueprints)
 """
 import os
@@ -14,7 +14,8 @@ from werkzeug.exceptions import NotFound
 bp = Blueprint("web", __name__)
 
 # Solo se sirven archivos sueltos con estas extensiones (nada de .py, .env, etc.)
-EXTENSIONES_PERMITIDAS = {".svg", ".png", ".ico", ".webmanifest", ".txt"}
+# (.js: solo tema.js, que tiene que cargarse antes que la app para no dar un fogonazo de color)
+EXTENSIONES_PERMITIDAS = {".svg", ".png", ".ico", ".webmanifest", ".txt", ".js"}
 
 # Política de seguridad del navegador para la página: solo carga cosas de nuestro propio servidor.
 # 'unsafe-inline' en estilos hace falta porque React pone estilos en línea (style={{...}}).
