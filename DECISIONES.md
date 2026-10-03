@@ -23,7 +23,7 @@ Sustituye a todo lo que `PROMPT.md` dice sobre APK, Capacitor, firma, hosting y 
   PythonAnywhere sin credenciales. No contiene secretos.
 - **`CONFIAR_EN_PROXY=1` en el servidor** (obligatorio): PythonAnywhere va detrás de un proxy y, sin
   esto, el bloqueo de login por IP afectaría a todos a la vez.
-- **Comandos de prueba** (`flask datos-demo`, `flask demo-votar`): ya no se protegen con "solo SQLite"
+- **Comandos de prueba** (`flask datos-demo`, `flask demo-apuntar`, `flask demo-votar`): ya no se protegen con "solo SQLite"
   (producción también lo es) sino con `PERMITIR_DATOS_DEMO=1`, que solo se pone en el PC.
 - **Dependencias**: fuera `psycopg` (PostgreSQL) y `gunicorn`. PythonAnywhere usa su propio servidor
   WSGI e importa `backend/wsgi.py` (variable `application`), que carga el `.env`.
@@ -34,6 +34,40 @@ Sustituye a todo lo que `PROMPT.md` dice sobre APK, Capacitor, firma, hosting y 
   intacto en la etiqueta de git **`con-apk-android`** por si algún día se retoma. El keystore sigue
   en `C:\Users\SuFran\.pachanga\` (fuera del repositorio).
 - Los pasos para publicar están en el README, apartado 6.
+
+## ⭐ Huecos, reservas, multas, precio y tema (03/10/2026)
+
+Sustituye a la **convocatoria elegida por el admin** (sección 4.2 de `PROMPT.md` y el "Volver a
+elegir" de más abajo).
+
+- **Cada jugador reserva su hueco.** El admin crea el partido y cada uno entra y pulsa *Reservar
+  hueco*. La lista va **por orden de llegada**: los **10 primeros juegan** y los siguientes son
+  **reservas** (11, 12...). Si uno de los 10 se va, el primer reserva sube solo.
+- **Liberar hueco.** Hasta **24 horas antes** del partido, sin consecuencias. Con **menos de 24
+  horas**, el que juega se lleva una **multa**, **aunque un reserva ocupe su sitio**. Los reservas
+  se borran siempre sin multa. La app avisa antes de pulsar.
+- **Multas sin importe.** Solo quedan apuntadas (jugador, partido, motivo). El admin las marca como
+  **pagada** o **perdonada** (y puede deshacerlo) en *Admin → Multas*. Cada jugador ve solo las
+  suyas (en Perfil, y un aviso en Inicio mientras tenga alguna pendiente).
+- **Con los equipos hechos, la lista se cierra** para los jugadores (ni apuntarse ni borrarse).
+  Si alguien no puede ir, se lo dice al admin.
+- **El admin puede apuntar o quitar a cualquiera** en cualquier momento del partido abierto, y al
+  quitar elige si lleva multa. Si quita a uno de los que juegan con los equipos ya hechos, los
+  equipos, los votos y la cuenta de repartos empiezan de cero y entra el primer reserva. A quien
+  apunte con los equipos hechos, entra de reserva.
+- **Crear equipos** usa siempre a los 10 primeros de la lista; hacen falta exactamente 10.
+- **Los reservas no cuentan**: no votan, no apuntan goles y el partido no les suma como jugado.
+- **Precio del partido**: texto libre del admin (máx. 200 caracteres), p. ej. "Pagar a Feragi
+  (2,2 € anticipado | 2,5 € el día del partido)". Lo ven todos en la ficha del partido. Al crear
+  un partido sale relleno con el del anterior. La app no lleva cuentas de quién ha pagado.
+- **Si se borra un partido** (solo se puede si está abierto), se borran también sus multas.
+- **Hora**: el servidor va en UTC y las fechas de los partidos se guardan en hora de España; las
+  "24 horas" se calculan con `ZONA_HORARIA` (por defecto `Europe/Madrid`). El plazo se puede
+  cambiar con `HORAS_SIN_MULTA`.
+- **Tema claro / oscuro**: botón de sol/luna en la cabecera y en la pantalla de entrar. La elección
+  se guarda en el móvil; si no se elige nada, se usa el tema del móvil.
+- **Base de datos**: los campos nuevos se añaden solos al arrancar (`migraciones.py`), sin tocar los
+  datos. Los convocados de partidos anteriores pasan a ser "los que juegan" de ese partido.
 
 ## Fase 0 (30/09/2026)
 - La decisión de hosting se aplaza a la Fase 4 (las condiciones de los planes gratuitos cambian a menudo).
@@ -79,7 +113,7 @@ Sustituye a todo lo que `PROMPT.md` dice sobre APK, Capacitor, firma, hosting y 
 - Después, a cada convocado le aparece **"¿Deseas una nueva selección de equipo?" Sí / No**. **Se vota una sola vez y no se puede cambiar**; tras un nuevo reparto se vuelve a votar. Solo se ven los totales; cada uno ve únicamente su propio voto.
 - Con **6 síes o más** (6 contra 4 ya es mayoría) el admin puede rebarajar. El nuevo reparto sigue sin repetir el anterior.
 - **Máximo 3 repartos** en total (el inicial + 2 cambios). Cada reparto abre una votación nueva desde cero.
-- "Volver a elegir" solo sirve para **cambiar convocados**: con los mismos 10, los equipos se mantienen; si cambia alguien, se rehacen los equipos y la cuenta de repartos y votos empieza de cero.
+- ~~"Volver a elegir"~~ ya no existe (03/10/2026): ahora el admin quita o apunta jugadores en la lista (ver "Huecos, reservas, multas" arriba). Si cambia alguno de los que juegan, se rehacen los equipos y la cuenta de repartos y votos empieza de cero.
 - Umbral y máximo configurables (`VOTOS_PARA_REBARAJAR`, `MAX_REPARTOS`).
 
 ## Fase 2: frontend (01/10/2026)

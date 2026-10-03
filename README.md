@@ -1,8 +1,8 @@
 # Pachanga Manager
 
-Aplicación web para organizar los partidos de fútbol de la peña: convocatorias, equipos
-equilibrados, votación para rebarajar, orden en portería, goles, clasificación y
-valoraciones secretas. Se usa desde el navegador del móvil (Android o iPhone) y se puede
+Aplicación web para organizar los partidos de fútbol de la peña: cada uno reserva su hueco
+(con reservas y multas por borrarse tarde), equipos equilibrados, votación para rebarajar,
+orden en portería, goles, clasificación y valoraciones secretas. Se usa desde el navegador del móvil (Android o iPhone) y se puede
 añadir a la pantalla de inicio como una app.
 
 | Carpeta / archivo | Qué es |
@@ -197,6 +197,15 @@ Crea **12 jugadores de prueba ya aprobados** (Feragi, Chuti, El Tanke, Rulo, Kik
 Josemi, Payo, Sergi, Toni, Manu y Guaje), **todos con el PIN `1111`**, y les pone
 valoraciones al azar para que los equipos salgan equilibrados.
 
+Hay otros dos comandos de prueba para no tener que entrar con 10 cuentas distintas. El número
+es el del partido: el que sale en la dirección del navegador (por ejemplo `#/partidos/1`).
+
+```powershell
+flask demo-apuntar 1                # los jugadores de prueba reservan hueco en el partido 1 (10 por defecto)
+flask demo-apuntar 1 --cuantos 12   # ...o 12: los 10 primeros juegan y 2 quedan de reservas
+flask demo-votar 1 --si 5           # 5 jugadores de prueba votan "sí" a rebarajar
+```
+
 > Estos comandos de prueba solo funcionan si tu `backend/.env` tiene `PERMITIR_DATOS_DEMO=1`
 > (la plantilla ya lo trae). En el servidor de verdad no se pone, y se niegan a ejecutarse.
 
@@ -221,42 +230,67 @@ Sigue estos pasos en orden; al lado de cada uno, lo que deberías ver.
 2. **Aprobar el alta** (ventana de admin → pestaña **Admin → Altas**; el globo rojo indica
    que hay algo pendiente). Pulsa *Aprobar*.
    → En unos segundos (o pulsando *Comprobar ahora*), el jugador nuevo entra solo.
-3. **Crear un partido** (admin → **Partidos → + Nuevo**): día, hora y lugar.
-4. **Convocatoria**: marca **exactamente 10** en la cuadrícula (prueba el buscador) y pulsa
-   *Crear equipos*.
-   → Aparece la **pista** con los dos equipos (portero, 2 defensas y 2 delanteros), la
-   fuerza de cada equipo y el **orden en portería**. *Crear equipos* solo se puede hacer una vez.
-5. **Votación para rebarajar**: como jugador convocado (incógnito), pulsa *Sí* o *No*.
-   → Tu voto queda bloqueado hasta el siguiente reparto. Para no tener que entrar con 6
-   cuentas, completa los votos con el comando de prueba (el número del partido es el que
-   sale en la dirección del navegador, por ejemplo `#/partidos/1`):
+3. **Crear un partido** (admin → **Partidos → + Nuevo**): día, hora, lugar y, si quieres, el
+   **precio** (un texto libre, por ejemplo `Pagar a Feragi (2,2 € anticipado | 2,5 € el día
+   del partido)`). El lugar y el precio salen ya rellenos con los del partido anterior.
+   → Se abre la ficha del partido con la lista de **Apuntados (0/10)** vacía.
+4. **Reservar hueco** (incógnito, como Feragi → el partido → *✋ Reservar hueco*).
+   → Feragi aparece en la lista con el número **1)** y el aviso amarillo con el precio.
+   Para llenar el partido sin entrar con más cuentas:
 
    ```powershell
-   flask demo-votar 1 --si 5           # 5 jugadores de prueba convocados votan "sí"
+   flask demo-apuntar 1 --cuantos 12
+   ```
+
+   → Recarga: la lista va numerada del **1) al 10)** (los que juegan) y, debajo, **Reservas:
+   11) y 12)**. Quien entre ahora verá *✋ Apuntarme de reserva*.
+5. **Liberar hueco** (incógnito → *Liberar hueco*, dos toques).
+   → Feragi sale de la lista y **el primer reserva sube solo** al puesto 10.
+   - Si faltan **más de 24 horas** para el partido: sin multa.
+   - Si faltan **menos de 24 horas**: sale un aviso rojo antes de pulsar y, al confirmarlo,
+     queda apuntada una **multa** (aunque un reserva ocupe el sitio). Para probarlo, crea un
+     partido para dentro de unas horas. Los reservas se borran siempre sin multa.
+6. **El admin gestiona la lista** (ventana de admin → el partido): cada fila tiene una **✕**
+   para quitar a ese jugador (*Quitar* o *Quitar con multa*), y debajo un desplegable para
+   **apuntar a alguien** (por ejemplo, a quien avisa por WhatsApp).
+7. **Crear equipos** (admin, cuando hay 10): *⚙️ Crear equipos*.
+   → Aparece la **pista** con los dos equipos (portero, 2 defensas y 2 delanteros), la
+   fuerza de cada equipo y el **orden en portería**. *Crear equipos* solo se puede hacer una
+   vez y **cierra la lista**: los jugadores ya no pueden apuntarse ni borrarse. Si alguien
+   se cae, el admin lo quita con la ✕: entra el primer reserva y hay que crear los equipos otra vez.
+8. **Votación para rebarajar**: como jugador que juega (incógnito), pulsa *Sí* o *No*.
+   → Tu voto queda bloqueado hasta el siguiente reparto. Completa los votos con:
+
+   ```powershell
+   flask demo-votar 1 --si 5
    ```
 
    → Recarga la página del admin: con **6 síes** se activa *Rebarajar*. Al pulsarlo salen
    equipos nuevos y empieza una votación nueva. Máximo **3 repartos** en total.
-6. **Volver a elegir**: con los mismos 10, los equipos no cambian; si cambias a alguien,
-   los equipos y la votación empiezan de cero.
-7. **Cerrar el partido**: *Cerrar partido* → indica el resultado con − y +.
-   → Se abre la **planilla**: goles y gpp (goles en propia puerta) de cada jugador. Si no
-   cuadra con el resultado sale un aviso, pero deja guardar.
-   - *Confirmar*: queda todo confirmado y sube a la clasificación.
-   - *Sig.*: te la saltas y cada jugador apunta lo suyo.
-8. **Un jugador apunta sus goles** (incógnito → el partido jugado → *Mis goles en este
-   partido*). Prueba también a **anularlo** (doble toque en el botón rojo).
-9. **Confirmar goles** (admin → **Admin → Goles**): *Confirmar* o *Descartar*.
-   → Lo confirmado aparece en **Tabla** (ordenable por Goles, En propia y Partidos).
-10. **Valorar** (pestaña *Valorar*): dale estrellas a un compañero.
+9. **Multas** (admin → **Admin → Multas**): cada multa se marca como *Pagada* o se *Perdona*
+   (y *Deshacer* si te equivocas). El jugador ve las suyas en **Perfil → Mis multas**, y en
+   Inicio le sale un aviso mientras tenga alguna pendiente.
+10. **Cerrar el partido**: *Cerrar partido* → indica el resultado con − y +.
+    → Se abre la **planilla**: goles y gpp (goles en propia puerta) de cada jugador. Si no
+    cuadra con el resultado sale un aviso, pero deja guardar.
+    - *Confirmar*: queda todo confirmado y sube a la clasificación.
+    - *Sig.*: te la saltas y cada jugador apunta lo suyo.
+11. **Un jugador apunta sus goles** (incógnito → el partido jugado → *Mis goles en este
+    partido*). Prueba también a **anularlo** (doble toque en el botón rojo).
+12. **Confirmar goles** (admin → **Admin → Goles**): *Confirmar* o *Descartar*.
+    → Lo confirmado aparece en **Tabla** (ordenable por Goles, En propia y Partidos).
+13. **Valorar** (pestaña *Valorar*): dale estrellas a un compañero.
     → Queda "Valorado ✓" y no se puede cambiar ni volver a ver.
-11. **Perfil**: cambia tu avatar; prueba *Cerrar sesión*.
-12. **PIN olvidado** (admin → **Admin → Peña → PIN nuevo**, dos toques).
+14. **Tema claro / oscuro**: pulsa el botón del **sol o la luna** (arriba a la derecha).
+    → Cambia el color de toda la app y se queda guardado en ese móvil. Si nunca lo pulsas,
+    la app usa el tema que tenga el móvil.
+15. **Perfil**: cambia tu avatar; prueba *Cerrar sesión*.
+16. **PIN olvidado** (admin → **Admin → Peña → PIN nuevo**, dos toques).
     → Sale un PIN nuevo para pasárselo por WhatsApp; el antiguo deja de valer.
-13. **Hacer admin a otro** (Admin → Peña → *Hacer admin*). Siempre tiene que quedar uno.
-14. **Borrar cuenta** (con un jugador de prueba: Perfil → *Borrar mi cuenta*, dos toques).
+17. **Hacer admin a otro** (Admin → Peña → *Hacer admin*). Siempre tiene que quedar uno.
+18. **Borrar cuenta** (con un jugador de prueba: Perfil → *Borrar mi cuenta*, dos toques).
     También existe la página web http://127.0.0.1:5000/borrar-cuenta, para borrarla sin entrar en la app.
-15. **"Conectando con el servidor…"**: apaga el backend (Ctrl+C) y recarga la app.
+19. **"Conectando con el servidor…"**: apaga el backend (Ctrl+C) y recarga la app.
     → Sale esa pantalla y reintenta sola; al volver a encender el backend, entra sola.
 
 ### 5.4 Empezar de cero
@@ -267,9 +301,9 @@ Si quieres borrar todos los datos de prueba:
 2. Borra el archivo `backend/instance/pachanga.db`.
 3. Vuelve a ejecutar `flask create-admin` (te dará un **PIN nuevo**) y, si quieres, `flask datos-demo`.
 
-> Haz lo mismo si, tras actualizar el código, el backend da errores del tipo
-> "no such column": la estructura de la base de datos ha cambiado y en la etapa local es
-> más sencillo empezar de cero (antes de publicar añadiremos migraciones).
+> **No hace falta borrar nada al actualizar el código.** Si una versión nueva necesita campos
+> nuevos en la base de datos, el backend los añade solo al arrancar, sin tocar los datos que
+> ya hay (lo hace `backend/pachanga/migraciones.py`).
 
 ---
 
@@ -443,8 +477,12 @@ versión. Si quieres que cambie con cada publicación, súbelo antes del paso 1 
   `pachanga-manager/backend/instance/` → icono de descarga junto a `pachanga.db`.
   Hazlo de vez en cuando (y siempre antes de publicar un cambio grande).
 - **Si un cambio modifica la estructura de la base de datos** (campos nuevos), el servidor
-  no la actualiza solo. Antes de publicar un cambio así hay que preparar la actualización
-  de la base de datos con cuidado para no perder los datos de la peña.
+  la actualiza solo al pulsar **Reload**: añade lo que falte sin borrar ni cambiar ningún
+  dato (`backend/pachanga/migraciones.py`). Aun así, **descarga antes la copia de seguridad**
+  del punto anterior: si algo saliera mal, bastaría con volver a subir ese archivo.
+- **La hora de los partidos.** El servidor va con otro reloj (UTC), pero la app calcula las
+  "24 horas antes del partido" con la hora de España. Si algún día la peña juega en otro
+  huso horario, se cambia con `ZONA_HORARIA` en el `.env` del servidor.
 - **Límites del plan gratuito:** 100 segundos de CPU al día (de sobra para una peña) y
   512 MB de disco. Si algún día se queda corto, el plan de pago quita la renovación mensual.
 - **Los comandos de prueba (`flask datos-demo`) no funcionan en el servidor** a propósito:
@@ -472,6 +510,7 @@ desde **Admin → Altas**.
 | `backend` | `pytest` | Ejecuta los tests |
 | `backend` | `flask create-admin` | Crea el primer admin (solo si no hay ninguno) |
 | `backend` | `flask datos-demo` | Solo pruebas: 12 jugadores con PIN 1111 |
+| `backend` | `flask demo-apuntar N --cuantos 12` | Solo pruebas: los jugadores de prueba reservan hueco en el partido N |
 | `backend` | `flask demo-votar N --si 5 --no 1` | Solo pruebas: votos en el partido N |
 | `app` | `npm install` | Instala las dependencias (la primera vez o si cambia `package.json`) |
 | `app` | `npm run dev` | Enciende la app en el puerto 5173 (para programar) |
